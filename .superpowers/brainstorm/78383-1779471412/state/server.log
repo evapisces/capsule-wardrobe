@@ -1,0 +1,7 @@
+{"type":"server-started","port":63161,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:63161","screen_dir":"/Users/evaniamans/Code/capsule-wardrobe/.superpowers/brainstorm/78383-1779471412/content","state_dir":"/Users/evaniamans/Code/capsule-wardrobe/.superpowers/brainstorm/78383-1779471412/state"}
+{"type":"screen-added","file":"/Users/evaniamans/Code/capsule-wardrobe/.superpowers/brainstorm/78383-1779471412/content/capsule-interaction.html"}
+{"source":"user-event","type":"click","text":"🗂 Japan Trip Capsule — 3/10 items\n        \n          👟\n          👜\n          👕\n          +\n        \n      \n      \n        👖\n        👗\n        🧥\n        🧣\n      \n    \n    \n      C — Capsule-First\n      The capsule lives at the top as a persistent tray. Browse your full closet below and click items to add/remove from the active capsule. Focus stays on curating the capsule, not on the closet.","choice":"c","id":null,"timestamp":1779471809020}
+{"type":"screen-added","file":"/Users/evaniamans/Code/capsule-wardrobe/.superpowers/brainstorm/78383-1779471412/content/capsule-tray-interaction.html"}
+{"type":"screen-added","file":"/Users/evaniamans/Code/capsule-wardrobe/.superpowers/brainstorm/78383-1779471412/content/search-pattern.html"}
+{"type":"screen-added","file":"/Users/evaniamans/Code/capsule-wardrobe/.superpowers/brainstorm/78383-1779471412/content/waiting-1.html"}
+{"type":"server-stopped","reason":"idle timeout"}

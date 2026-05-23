@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  createdAt DateTime  @default(now())
+  closets   Closet[]
+  capsules  Capsule[]
+  trips     Trip[]
+}
+
+model Closet {
+  id          String       @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime     @default(now())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       ClosetItem[]
+}
+
+model ClosetItem {
+  id        String        @id @default(cuid())
+  closetId  String
+  name      String
+  photoUrl  String?
+  category  ItemCategory
+  color     String?
+  climate   Climate?
+  size      String?
+  brand     String?
+  notes     String?
+  createdAt DateTime      @default(now())
+  closet    Closet        @relation(fields: [closetId], references: [id], onDelete: Cascade)
+  capsules  CapsuleItem[]
+}
+
+enum ItemCategory {
+  tops
+  bottoms
+  dresses
+  shoes
+  accessories
+  outerwear
+}
+
+enum Climate {
+  tropical
+  temperate
+  cold
+  layering
+}
+
+model Capsule {
+  id          String        @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime      @default(now())
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       CapsuleItem[]
+  trips       TripCapsule[]
+}
+
+model CapsuleItem {
+  capsuleId    String
+  closetItemId String
+  capsule      Capsule    @relation(fields: [capsuleId], references: [id], onDelete: Cascade)
+  closetItem   ClosetItem @relation(fields: [closetItemId], references: [id], onDelete: Cascade)
+
+  @@id([capsuleId, closetItemId])
+}
+
+model Trip {
+  id          String        @id @default(cuid())
+  userId      String
+  name        String
+  destination String
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime      @default(now())
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  capsules    TripCapsule[]
+}
+
+model TripCapsule {
+  tripId    String
+  capsuleId String
+  trip      Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  capsule   Capsule @relation(fields: [capsuleId], references: [id], onDelete: Cascade)
+
+  @@id([tripId, capsuleId])
+}

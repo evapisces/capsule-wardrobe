@@ -10,6 +10,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true, // bind to 0.0.0.0 so phones on the same network can connect
     proxy: {
       '/api': 'http://localhost:3001',
     },

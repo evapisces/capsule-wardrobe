@@ -14,7 +14,7 @@ export function createApp() {
   app.use(cors({ origin: process.env.CLIENT_URL ?? 'http://localhost:5173' }));
   app.use(express.json());
 
-  app.get('/health', (_req, res) => res.json({ ok: true }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
   app.use('/api/closets', closetsRouter);
   app.use('/api', itemsRouter);

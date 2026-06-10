@@ -8,7 +8,7 @@ services:
       branch: main
       deploy_on_push: true
     build_command: npm ci && npm run build && npx prisma migrate deploy
-    run_command: node dist/index.js
+    run_command: node dist/server/src/index.js
     instance_size_slug: basic-xxs
     instance_count: 1
     http_port: 3001
@@ -42,5 +42,5 @@ databases:
   - name: db
     engine: PG
     version: "16"
-    production: true
+    production: false
     cluster_name: capsule-wardrobe-db

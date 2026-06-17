@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getClosetItem, updateClosetItem, deleteClosetItem } from '../lib/api';
+import { getClosetItem, updateClosetItem, deleteClosetItem, uploadPhoto } from '../lib/api';
 import type { ItemCategory, Climate } from '@capsule/shared';
 
 const inputStyle: React.CSSProperties = {
@@ -25,6 +25,9 @@ export default function ItemDetailPage() {
     name: '', category: 'tops' as ItemCategory, color: '',
     climate: '' as Climate | '', size: '', brand: '', notes: '',
   });
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const startEdit = () => {
     if (!item) return;
@@ -37,18 +40,37 @@ export default function ItemDetailPage() {
       brand: item.brand ?? '',
       notes: item.notes ?? '',
     });
+    setPhotoFile(null);
+    setPhotoPreview(item.photoUrl ?? null);
     setEditing(true);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
   const updateMutation = useMutation({
-    mutationFn: () => updateClosetItem(id!, {
-      ...form,
-      color: form.color || undefined,
-      climate: (form.climate as Climate) || undefined,
-      size: form.size || undefined,
-      brand: form.brand || undefined,
-      notes: form.notes || undefined,
-    }),
+    mutationFn: async () => {
+      let photoUrl: string | undefined;
+      if (photoFile) {
+        setUploading(true);
+        const { key } = await uploadPhoto(photoFile);
+        photoUrl = key;
+        setUploading(false);
+      }
+      return updateClosetItem(id!, {
+        ...form,
+        color: form.color || undefined,
+        climate: (form.climate as Climate) || undefined,
+        size: form.size || undefined,
+        brand: form.brand || undefined,
+        notes: form.notes || undefined,
+        ...(photoUrl ? { photoUrl } : {}),
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['item', id] });
       qc.invalidateQueries({ queryKey: ['closetItems'] });
@@ -113,6 +135,18 @@ export default function ItemDetailPage() {
         </>
       ) : (
         <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate(); }}>
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: '#666', display: 'block', marginBottom: '4px' }}>
+              Photo
+            </label>
+            {photoPreview && (
+              <img src={photoPreview} alt="Preview"
+                style={{ width: '80px', height: '80px', objectFit: 'cover',
+                  borderRadius: '6px', marginBottom: '6px', display: 'block' }} />
+            )}
+            <input type="file" accept="image/*" onChange={handleFileChange} />
+          </div>
+
           {[
             { label: 'Name', key: 'name', type: 'text' },
             { label: 'Color', key: 'color', type: 'text' },
@@ -159,7 +193,7 @@ export default function ItemDetailPage() {
               disabled={updateMutation.isPending}
               style={{ padding: '8px 18px', background: '#0bcddb', color: '#fff',
                 border: 'none', borderRadius: '6px', fontWeight: 600 }}>
-              {updateMutation.isPending ? 'Saving…' : 'Save'}
+              {uploading ? 'Uploading…' : updateMutation.isPending ? 'Saving…' : 'Save'}
             </button>
             <button type="button" onClick={() => setEditing(false)}
               style={{ padding: '8px 18px', background: '#fff', border: '1px solid #d8d0c8', borderRadius: '6px' }}>

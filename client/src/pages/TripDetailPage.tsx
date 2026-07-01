@@ -7,13 +7,20 @@ import {
 } from '../lib/api';
 import BottomSheet from '../components/BottomSheet';
 import Tooltip from '../components/Tooltip';
-import type { Capsule, ClosetItem } from '@capsule/shared';
+import type { Capsule, ClosetItem, Climate } from '@capsule/shared';
 
 function describeItem(item: ClosetItem): string {
   const details = [item.brand, item.category, item.size, item.color, item.climate]
     .filter((v): v is string => Boolean(v));
   return details.length ? `${item.name} — ${details.join(' · ')}` : item.name;
 }
+
+const CLIMATE_THEME: Record<Climate, { icon: string; gradient: string; accent: string }> = {
+  tropical: { icon: '☀️', gradient: 'linear-gradient(135deg, #fff1d6, #ffd98a)', accent: '#b8710f' },
+  temperate: { icon: '⛅', gradient: 'linear-gradient(135deg, #dff5ea, #b8e6d1)', accent: '#1b9e6b' },
+  cold: { icon: '❄️', gradient: 'linear-gradient(135deg, #e3f1fc, #b8dcf5)', accent: '#2274a5' },
+  layering: { icon: '🌦️', gradient: 'linear-gradient(135deg, #efe6fc, #d9c8f5)', accent: '#7952b3' },
+};
 
 export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -90,24 +97,54 @@ export default function TripDetailPage() {
       </div>
 
       <div style={{
-        border: '1px solid #e0d8cc', borderRadius: '10px', background: '#fff',
-        padding: '14px 16px', marginBottom: '24px',
+        borderRadius: '14px', marginBottom: '24px', padding: '16px 20px',
+        background: weather ? CLIMATE_THEME[weather.predictedClimate].gradient : '#fff',
+        border: weather ? 'none' : '1px solid #e0d8cc',
       }}>
-        <h2 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '6px' }}>Expected Weather</h2>
-        {weatherLoading && <p style={{ color: '#aaa', fontSize: '13px' }}>Checking forecast…</p>}
+        <h2 style={{
+          fontSize: '11px', fontWeight: 700, marginBottom: '10px', letterSpacing: '0.05em',
+          textTransform: 'uppercase', color: weather ? 'rgba(0,0,0,0.5)' : '#888',
+        }}>
+          Expected Weather
+        </h2>
+        {weatherLoading && <p style={{ color: '#aaa', fontSize: '13px' }}>☁️ Checking forecast…</p>}
         {weatherError && (
           <p style={{ color: '#aaa', fontSize: '13px' }}>
-            Couldn't find weather data for "{trip.destination}".
+            🤷 Couldn't find weather data for "{trip.destination}".
           </p>
         )}
         {weather && (
-          <p style={{ fontSize: '13px', color: '#555' }}>
-            {weather.resolvedLocation} · {Math.round(weather.avgHighF)}°F / {Math.round(weather.avgLowF)}°F ·{' '}
-            <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{weather.predictedClimate}</span>
-            <span style={{ color: '#aaa' }}>
-              {' '}({weather.source === 'forecast' ? 'forecast' : 'historical average'})
-            </span>
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ fontSize: '38px', lineHeight: 1 }}>
+              {CLIMATE_THEME[weather.predictedClimate].icon}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '26px', fontWeight: 800, color: '#2b2b2b', lineHeight: 1.15 }}>
+                {Math.round(weather.avgHighF)}°
+                <span style={{ fontSize: '16px', fontWeight: 600, color: 'rgba(0,0,0,0.45)' }}>
+                  {' '}/ {Math.round(weather.avgLowF)}°F
+                </span>
+              </div>
+              <div style={{
+                fontSize: '13px', color: 'rgba(0,0,0,0.6)', marginTop: '2px',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                📍 {weather.resolvedLocation}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <span style={{
+                display: 'inline-block', padding: '4px 10px', borderRadius: '999px',
+                background: 'rgba(255,255,255,0.65)', color: CLIMATE_THEME[weather.predictedClimate].accent,
+                fontSize: '12px', fontWeight: 700, textTransform: 'capitalize',
+              }}>
+                {weather.predictedClimate}
+              </span>
+              <div style={{ fontSize: '10px', color: 'rgba(0,0,0,0.45)', marginTop: '5px' }}>
+                {weather.source === 'forecast' ? 'Live forecast' : 'Historical avg'}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

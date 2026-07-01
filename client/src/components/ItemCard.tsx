@@ -1,4 +1,5 @@
 import type { ClosetItem } from '@capsule/shared';
+import Tooltip from './Tooltip';
 
 interface Props {
   item: ClosetItem;
@@ -12,7 +13,6 @@ export default function ItemCard({ item, isInActiveCapsule, onClick }: Props) {
   const cardStyle: React.CSSProperties = {
     position: 'relative',
     borderRadius: '8px',
-    overflow: 'hidden',
     background: '#f0ebe3',
     border: isInActiveCapsule ? '2px solid #2a9d8f' : '2px solid transparent',
     cursor: onClick ? 'pointer' : 'default',
@@ -20,6 +20,14 @@ export default function ItemCard({ item, isInActiveCapsule, onClick }: Props) {
     display: 'flex',
     flexDirection: 'column',
     width: '100%',
+  };
+
+  const clipStyle: React.CSSProperties = {
+    borderRadius: '6px',
+    overflow: 'hidden',
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
   };
 
   const badgeStyle: React.CSSProperties = {
@@ -68,9 +76,17 @@ export default function ItemCard({ item, isInActiveCapsule, onClick }: Props) {
       title={item.name}
       aria-label={item.name}
     >
-      <div style={photoStyle}>{!item.photoUrl && '👕'}</div>
-      <div style={labelStyle}>{item.name}</div>
-      {showBadge && <span style={badgeStyle}>{item.capsuleCount}</span>}
+      <div style={clipStyle}>
+        <div style={photoStyle}>{!item.photoUrl && '👕'}</div>
+        <div style={labelStyle}>{item.name}</div>
+      </div>
+      {showBadge && (
+        <span style={{ position: 'absolute', top: '4px', right: '4px' }}>
+          <Tooltip content={`In ${item.capsuleCount} capsule${item.capsuleCount === 1 ? '' : 's'}`}>
+            <span style={{ ...badgeStyle, position: 'static' }}>{item.capsuleCount}</span>
+          </Tooltip>
+        </span>
+      )}
     </button>
   );
 }

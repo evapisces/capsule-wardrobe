@@ -137,12 +137,18 @@ export default function TripDetailPage() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontWeight: 700, fontSize: '14px' }}>{capsule.name}</span>
-                    {suitability && suitability.itemClimates.length > 0 && (
-                      <span style={{
-                        fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
-                        background: suitability.suitable ? '#e3f7ee' : '#fdf0e3',
-                        color: suitability.suitable ? '#1b9e6b' : '#c47f1a',
-                      }}>
+                    {suitability && suitability.itemClimates.length > 0 && weather && (
+                      <span
+                        title={suitability.suitable
+                          ? `This capsule's items are tagged for ${suitability.itemClimates.join(', ')} weather, which matches the ${weather.predictedClimate} conditions expected for this trip.`
+                          : `This capsule's items are tagged for ${suitability.itemClimates.join(', ')} weather, but this trip is expected to be ${weather.predictedClimate}. You may want to swap in different items.`}
+                        style={{
+                          fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
+                          background: suitability.suitable ? '#e3f7ee' : '#fdf0e3',
+                          color: suitability.suitable ? '#1b9e6b' : '#c47f1a',
+                          cursor: 'help',
+                        }}
+                      >
                         {suitability.suitable ? '✓ Good fit' : '⚠ Mismatch'}
                       </span>
                     )}

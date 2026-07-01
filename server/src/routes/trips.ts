@@ -1,5 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
+import { geocodeDestination, fetchTripTemps, classifyClimate } from '../lib/weather';
+import type { Climate, CapsuleSuitability } from '@capsule/shared';
 
 const router = Router();
 const USER_ID = 'user_1';
@@ -97,6 +99,44 @@ router.delete('/:id/capsules/:capsuleId', async (req: Request, res: Response, ne
       },
     });
     res.status(204).send();
+  } catch (err) { next(err); }
+});
+
+router.get('/:id/weather', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const trip = await prisma.trip.findUnique({
+      where: { id: req.params.id },
+      include: {
+        capsules: {
+          include: {
+            capsule: {
+              include: { items: { include: { closetItem: true } } },
+            },
+          },
+        },
+      },
+    });
+    if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+    const { latitude, longitude, resolvedLocation } = await geocodeDestination(trip.destination);
+    const { source, avgHighF, avgLowF } = await fetchTripTemps(
+      latitude, longitude, trip.startDate, trip.endDate
+    );
+    const predictedClimate = classifyClimate(avgHighF, avgLowF);
+
+    const capsuleSuitability: CapsuleSuitability[] = trip.capsules.map(({ capsule }) => {
+      const itemClimates = [...new Set(
+        capsule.items.map(({ closetItem }) => closetItem.climate).filter((c): c is Climate => c !== null)
+      )];
+      return {
+        capsuleId: capsule.id,
+        capsuleName: capsule.name,
+        suitable: itemClimates.length === 0 || itemClimates.includes(predictedClimate),
+        itemClimates,
+      };
+    });
+
+    res.json({ source, resolvedLocation, avgHighF, avgLowF, predictedClimate, capsuleSuitability });
   } catch (err) { next(err); }
 });
 

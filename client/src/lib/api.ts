@@ -6,6 +6,7 @@ import type {
   UploadResponse,
   ItemCategory,
   Climate,
+  TripWeather,
 } from '@capsule/shared';
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
@@ -93,3 +94,5 @@ export const linkCapsuleToTrip = (tripId: string, capsuleId: string) =>
   request<void>(`/trips/${tripId}/capsules/${capsuleId}`, { method: 'POST' });
 export const unlinkCapsuleFromTrip = (tripId: string, capsuleId: string) =>
   request<void>(`/trips/${tripId}/capsules/${capsuleId}`, { method: 'DELETE' });
+export const getTripWeather = (tripId: string) =>
+  request<TripWeather>(`/trips/${tripId}/weather`);

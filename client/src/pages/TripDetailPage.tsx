@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getTrip, getCapsules, linkCapsuleToTrip,
-  unlinkCapsuleFromTrip, deleteTrip,
+  unlinkCapsuleFromTrip, deleteTrip, getTripWeather,
 } from '../lib/api';
 import BottomSheet from '../components/BottomSheet';
 import type { Capsule, ClosetItem } from '@capsule/shared';
@@ -27,7 +27,17 @@ export default function TripDetailPage() {
     enabled: sheetOpen,
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['trip', id] });
+  const { data: weather, isLoading: weatherLoading, isError: weatherError } = useQuery({
+    queryKey: ['tripWeather', id],
+    queryFn: () => getTripWeather(id!),
+    enabled: !!id,
+    retry: false,
+  });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['trip', id] });
+    qc.invalidateQueries({ queryKey: ['tripWeather', id] });
+  };
 
   const linkMutation = useMutation({
     mutationFn: (capsuleId: string) => linkCapsuleToTrip(id!, capsuleId),
@@ -72,6 +82,28 @@ export default function TripDetailPage() {
         </p>
       </div>
 
+      <div style={{
+        border: '1px solid #e0d8cc', borderRadius: '10px', background: '#fff',
+        padding: '14px 16px', marginBottom: '24px',
+      }}>
+        <h2 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '6px' }}>Expected Weather</h2>
+        {weatherLoading && <p style={{ color: '#aaa', fontSize: '13px' }}>Checking forecast…</p>}
+        {weatherError && (
+          <p style={{ color: '#aaa', fontSize: '13px' }}>
+            Couldn't find weather data for "{trip.destination}".
+          </p>
+        )}
+        {weather && (
+          <p style={{ fontSize: '13px', color: '#555' }}>
+            {weather.resolvedLocation} · {Math.round(weather.avgHighF)}°F / {Math.round(weather.avgLowF)}°F ·{' '}
+            <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{weather.predictedClimate}</span>
+            <span style={{ color: '#aaa' }}>
+              {' '}({weather.source === 'forecast' ? 'forecast' : 'historical average'})
+            </span>
+          </p>
+        )}
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <h2 style={{ fontSize: '17px', fontWeight: 700 }}>Capsules</h2>
         <button
@@ -93,6 +125,7 @@ export default function TripDetailPage() {
         {(trip.capsules ?? []).map((capsule: Capsule) => {
           const isExpanded = expandedCapsuleIds.has(capsule.id);
           const items: ClosetItem[] = capsule.items ?? [];
+          const suitability = weather?.capsuleSuitability.find((c) => c.capsuleId === capsule.id);
           return (
             <div key={capsule.id}
               style={{ border: '1px solid #e0d8cc', borderRadius: '10px', background: '#fff', overflow: 'hidden' }}>
@@ -102,7 +135,18 @@ export default function TripDetailPage() {
                 onClick={() => toggleExpand(capsule.id)}
               >
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '14px' }}>{capsule.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontWeight: 700, fontSize: '14px' }}>{capsule.name}</span>
+                    {suitability && suitability.itemClimates.length > 0 && (
+                      <span style={{
+                        fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
+                        background: suitability.suitable ? '#e3f7ee' : '#fdf0e3',
+                        color: suitability.suitable ? '#1b9e6b' : '#c47f1a',
+                      }}>
+                        {suitability.suitable ? '✓ Good fit' : '⚠ Mismatch'}
+                      </span>
+                    )}
+                  </div>
                   <div style={{ fontSize: '12px', color: '#aaa', marginTop: '2px' }}>
                     {items.length} item{items.length !== 1 ? 's' : ''}
                   </div>

@@ -61,3 +61,19 @@ export interface UploadResponse {
   key: string;
   url: string;
 }
+
+export interface CapsuleSuitability {
+  capsuleId: string;
+  capsuleName: string;
+  suitable: boolean;
+  itemClimates: Climate[];
+}
+
+export interface TripWeather {
+  source: 'forecast' | 'historical-average';
+  resolvedLocation: string;
+  avgHighF: number;
+  avgLowF: number;
+  predictedClimate: Climate;
+  capsuleSuitability: CapsuleSuitability[];
+}

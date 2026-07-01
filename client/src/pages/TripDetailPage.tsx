@@ -6,6 +6,7 @@ import {
   unlinkCapsuleFromTrip, deleteTrip, getTripWeather,
 } from '../lib/api';
 import BottomSheet from '../components/BottomSheet';
+import Tooltip from '../components/Tooltip';
 import type { Capsule, ClosetItem } from '@capsule/shared';
 
 function describeItem(item: ClosetItem): string {
@@ -144,19 +145,21 @@ export default function TripDetailPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontWeight: 700, fontSize: '14px' }}>{capsule.name}</span>
                     {suitability && suitability.itemClimates.length > 0 && weather && (
-                      <span
-                        title={suitability.suitable
-                          ? `This capsule's items are tagged for ${suitability.itemClimates.join(', ')} weather, which matches the ${weather.predictedClimate} conditions expected for this trip.`
-                          : `This capsule's items are tagged for ${suitability.itemClimates.join(', ')} weather, but this trip is expected to be ${weather.predictedClimate}. You may want to swap in different items.`}
-                        style={{
-                          fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
-                          background: suitability.suitable ? '#e3f7ee' : '#fdf0e3',
-                          color: suitability.suitable ? '#1b9e6b' : '#c47f1a',
-                          cursor: 'help',
-                        }}
+                      <Tooltip content={suitability.suitable
+                        ? `This capsule's items are tagged for ${suitability.itemClimates.join(', ')} weather, which matches the ${weather.predictedClimate} conditions expected for this trip.`
+                        : `This capsule's items are tagged for ${suitability.itemClimates.join(', ')} weather, but this trip is expected to be ${weather.predictedClimate}. You may want to swap in different items.`}
                       >
-                        {suitability.suitable ? '✓ Good fit' : '⚠ Mismatch'}
-                      </span>
+                        <span
+                          style={{
+                            fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
+                            background: suitability.suitable ? '#e3f7ee' : '#fdf0e3',
+                            color: suitability.suitable ? '#1b9e6b' : '#c47f1a',
+                            cursor: 'help',
+                          }}
+                        >
+                          {suitability.suitable ? '✓ Good fit' : '⚠ Mismatch'}
+                        </span>
+                      </Tooltip>
                     )}
                   </div>
                   <div style={{ fontSize: '12px', color: '#aaa', marginTop: '2px' }}>
@@ -182,18 +185,19 @@ export default function TripDetailPage() {
                   ) : (
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '10px' }}>
                       {items.map((item: ClosetItem) => (
-                        <div key={item.id}
-                          style={{ width: '52px', height: '52px', borderRadius: '8px',
-                            background: '#e0d8cc', display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', fontSize: '20px', overflow: 'hidden',
-                            cursor: 'help' }}
-                          title={describeItem(item)}
-                        >
-                          {item.photoUrl
-                            ? <img src={item.photoUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            : '👕'
-                          }
-                        </div>
+                        <Tooltip key={item.id} content={describeItem(item)}>
+                          <div
+                            style={{ width: '52px', height: '52px', borderRadius: '8px',
+                              background: '#e0d8cc', display: 'flex', alignItems: 'center',
+                              justifyContent: 'center', fontSize: '20px', overflow: 'hidden',
+                              cursor: 'help' }}
+                          >
+                            {item.photoUrl
+                              ? <img src={item.photoUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : '👕'
+                            }
+                          </div>
+                        </Tooltip>
                       ))}
                     </div>
                   )}

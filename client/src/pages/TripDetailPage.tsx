@@ -8,6 +8,12 @@ import {
 import BottomSheet from '../components/BottomSheet';
 import type { Capsule, ClosetItem } from '@capsule/shared';
 
+function describeItem(item: ClosetItem): string {
+  const details = [item.brand, item.category, item.size, item.color, item.climate]
+    .filter((v): v is string => Boolean(v));
+  return details.length ? `${item.name} — ${details.join(' · ')}` : item.name;
+}
+
 export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -179,8 +185,9 @@ export default function TripDetailPage() {
                         <div key={item.id}
                           style={{ width: '52px', height: '52px', borderRadius: '8px',
                             background: '#e0d8cc', display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', fontSize: '20px', overflow: 'hidden' }}
-                          title={item.name}
+                            justifyContent: 'center', fontSize: '20px', overflow: 'hidden',
+                            cursor: 'help' }}
+                          title={describeItem(item)}
                         >
                           {item.photoUrl
                             ? <img src={item.photoUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

@@ -115,3 +115,54 @@ describe('DELETE /api/items/:id', () => {
     expect(res.status).toBe(204);
   });
 });
+
+describe('POST /api/items/:id/wear', () => {
+  it('logs a wear and is idempotent for the same day', async () => {
+    const item = await prisma.closetItem.create({
+      data: { closetId, name: 'Wear Test Item', category: 'tops', pricePaid: 20 },
+    });
+
+    const first = await request(app).post(`/api/items/${item.id}/wear`);
+    expect(first.status).toBe(201);
+    expect(first.body.wearCount).toBe(1);
+
+    const second = await request(app).post(`/api/items/${item.id}/wear`);
+    expect(second.status).toBe(201);
+    expect(second.body.wearCount).toBe(1); // no double-count same day
+
+    const detail = await request(app).get(`/api/items/${item.id}`);
+    expect(detail.body.wearCount).toBe(1);
+    expect(detail.body.lastWornAt).not.toBeNull();
+    expect(detail.body.costPerWear).toBe(20);
+  });
+});
+
+describe('DELETE /api/items/:id/wear', () => {
+  it('undoes today\'s manual wear log', async () => {
+    const item = await prisma.closetItem.create({
+      data: { closetId, name: 'Undo Wear Item', category: 'tops' },
+    });
+    await request(app).post(`/api/items/${item.id}/wear`);
+
+    const res = await request(app).delete(`/api/items/${item.id}/wear`);
+    expect(res.status).toBe(200);
+    expect(res.body.wearCount).toBe(0);
+
+    const again = await request(app).delete(`/api/items/${item.id}/wear`);
+    expect(again.status).toBe(404);
+  });
+});
+
+describe('GET /api/items/:id/wear-history', () => {
+  it('returns chronological wear events', async () => {
+    const item = await prisma.closetItem.create({
+      data: { closetId, name: 'History Item', category: 'tops' },
+    });
+    await request(app).post(`/api/items/${item.id}/wear`);
+
+    const res = await request(app).get(`/api/items/${item.id}/wear-history`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].source).toBe('manual');
+  });
+});

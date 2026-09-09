@@ -1,6 +1,13 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { ItemCategory, Climate } from '@capsule/shared';
+import {
+  getWearStatsForItems,
+  costPerWear,
+  isDormant,
+  logManualItemWear,
+  undoManualItemWear,
+} from '../lib/wearStats';
 
 const router = Router();
 
@@ -25,10 +32,19 @@ router.get('/closets/:id/items', async (req: Request, res: Response, next: NextF
       },
     });
 
-    const result = items.map(({ _count, ...item }) => ({
-      ...item,
-      capsuleCount: _count.capsules,
-    }));
+    const wearStats = await getWearStatsForItems(items.map((i) => i.id));
+
+    const result = items.map(({ _count, ...item }) => {
+      const stats = wearStats.get(item.id) ?? { wearCount: 0, lastWornAt: null };
+      return {
+        ...item,
+        capsuleCount: _count.capsules,
+        wearCount: stats.wearCount,
+        lastWornAt: stats.lastWornAt,
+        costPerWear: costPerWear(item.pricePaid, stats.wearCount),
+        dormant: isDormant(stats.lastWornAt),
+      };
+    });
 
     res.json(result);
   } catch (err) {
@@ -57,7 +73,66 @@ router.get('/items/:id', async (req: Request, res: Response, next: NextFunction)
     });
     if (!item) return res.status(404).json({ error: 'Item not found' });
     const { _count, ...rest } = item;
-    res.json({ ...rest, capsuleCount: _count.capsules });
+    const stats = (await getWearStatsForItems([item.id])).get(item.id)!;
+    res.json({
+      ...rest,
+      capsuleCount: _count.capsules,
+      wearCount: stats.wearCount,
+      lastWornAt: stats.lastWornAt,
+      costPerWear: costPerWear(item.pricePaid, stats.wearCount),
+      dormant: isDormant(stats.lastWornAt),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/items/:id/wear-history — chronological wear events for an item
+router.get('/items/:id/wear-history', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const rows = await prisma.wearEventItem.findMany({
+      where: { closetItemId: req.params.id },
+      include: {
+        wearEvent: {
+          include: { outfit: { select: { id: true, name: true } } },
+        },
+      },
+      orderBy: { wearEvent: { date: 'desc' } },
+    });
+
+    res.json(
+      rows.map(({ wearEvent }) => ({
+        id: wearEvent.id,
+        date: wearEvent.date.toISOString(),
+        outfitName: wearEvent.outfit?.name ?? null,
+        context: wearEvent.context,
+        source: wearEvent.source,
+        corrected: wearEvent.corrected,
+      }))
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/items/:id/wear — "Wore it today"; idempotent per calendar day
+router.post('/items/:id/wear', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await logManualItemWear(req.params.id);
+    const stats = (await getWearStatsForItems([req.params.id])).get(req.params.id)!;
+    res.status(201).json(stats);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/items/:id/wear — undo today's manual wear log
+router.delete('/items/:id/wear', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const undone = await undoManualItemWear(req.params.id);
+    if (!undone) return res.status(404).json({ error: 'No wear logged today for this item' });
+    const stats = (await getWearStatsForItems([req.params.id])).get(req.params.id)!;
+    res.json(stats);
   } catch (err) {
     next(err);
   }

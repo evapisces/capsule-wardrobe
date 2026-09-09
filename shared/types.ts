@@ -33,8 +33,35 @@ export interface ClosetItem {
   size: string | null;
   brand: string | null;
   notes: string | null;
+  pricePaid: number | null;
   createdAt: string;
   capsuleCount?: number;
+  wearCount?: number;
+  lastWornAt?: string | null;
+  costPerWear?: number | null;
+  dormant?: boolean;
+}
+
+export type WearSource = 'manual' | 'trip_auto';
+
+export interface WearHistoryEntry {
+  id: string;
+  date: string;
+  outfitName: string | null;
+  context: string | null;
+  source: WearSource;
+  corrected: boolean;
+}
+
+export interface ClosetStats {
+  wornThisMonth: number;
+  totalItems: number;
+  closetUtilisation: number;
+  closetUtilisationDelta: number;
+  dormantCount: number;
+  dormantCoolCount: number;
+  dormantThresholdDays: number;
+  avgCostPerWear: number | null;
 }
 
 export interface Capsule {

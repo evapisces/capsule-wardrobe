@@ -73,6 +73,29 @@ describe('PUT /api/closets/:id', () => {
   });
 });
 
+describe('GET /api/closets/:id/stats', () => {
+  it('returns the stat strip fields', async () => {
+    const closet = await prisma.closet.create({
+      data: { userId: USER_ID, name: 'Stats Closet' },
+    });
+    const worn = await prisma.closetItem.create({
+      data: { closetId: closet.id, name: 'Worn Item', category: 'tops', pricePaid: 10 },
+    });
+    await prisma.closetItem.create({
+      data: { closetId: closet.id, name: 'Unworn Item', category: 'tops' },
+    });
+    await request(app).post(`/api/items/${worn.id}/wear`);
+
+    const res = await request(app).get(`/api/closets/${closet.id}/stats`);
+    expect(res.status).toBe(200);
+    expect(res.body.totalItems).toBe(2);
+    expect(res.body.wornThisMonth).toBe(1);
+    expect(res.body.closetUtilisation).toBeCloseTo(0.5);
+    expect(res.body.dormantCount).toBe(1); // the never-worn item
+    expect(res.body.avgCostPerWear).toBe(10);
+  });
+});
+
 describe('DELETE /api/closets/:id', () => {
   it('deletes a closet', async () => {
     const closet = await prisma.closet.create({

@@ -7,6 +7,8 @@ import type {
   ItemCategory,
   Climate,
   TripWeather,
+  ClosetStats,
+  WearHistoryEntry,
 } from '@capsule/shared';
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
@@ -56,6 +58,18 @@ export const updateClosetItem = (id: string, data: Partial<ClosetItem>) =>
   request<ClosetItem>(`/items/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteClosetItem = (id: string) =>
   request<void>(`/items/${id}`, { method: 'DELETE' });
+export const getClosetStats = (closetId: string) =>
+  request<ClosetStats>(`/closets/${closetId}/stats`);
+export const getItemWearHistory = (itemId: string) =>
+  request<WearHistoryEntry[]>(`/items/${itemId}/wear-history`);
+export const logItemWear = (itemId: string) =>
+  request<{ wearCount: number; lastWornAt: string | null }>(`/items/${itemId}/wear`, {
+    method: 'POST',
+  });
+export const undoItemWear = (itemId: string) =>
+  request<{ wearCount: number; lastWornAt: string | null }>(`/items/${itemId}/wear`, {
+    method: 'DELETE',
+  });
 
 // Photo upload
 export const uploadPhoto = async (file: File): Promise<UploadResponse> => {

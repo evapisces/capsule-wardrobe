@@ -27,19 +27,24 @@ model Closet {
 }
 
 model ClosetItem {
-  id        String        @id @default(cuid())
-  closetId  String
-  name      String
-  photoUrl  String?
-  category  ItemCategory
-  color     String?
-  climate   Climate?
-  size      String?
-  brand     String?
-  notes     String?
-  createdAt DateTime      @default(now())
-  closet    Closet        @relation(fields: [closetId], references: [id], onDelete: Cascade)
-  capsules  CapsuleItem[]
+  id            String          @id @default(cuid())
+  closetId      String
+  name          String
+  photoUrl      String?
+  category      ItemCategory
+  color         String?
+  climate       Climate?
+  size          String?
+  brand         String?
+  notes         String?
+  pricePaid     Float?
+  createdAt     DateTime        @default(now())
+  closet        Closet          @relation(fields: [closetId], references: [id], onDelete: Cascade)
+  capsules      CapsuleItem[]
+  boardPositions BoardPosition[]
+  outfits       OutfitItem[]
+  wearEvents    WearEventItem[]
+  packingItems  PackingItem[]
 }
 
 enum ItemCategory {
@@ -58,15 +63,89 @@ enum Climate {
   layering
 }
 
+enum CapsuleKind {
+  trip
+  standing
+}
+
 model Capsule {
-  id          String        @id @default(cuid())
-  userId      String
-  name        String
-  description String?
-  createdAt   DateTime      @default(now())
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items       CapsuleItem[]
-  trips       TripCapsule[]
+  id             String          @id @default(cuid())
+  userId         String
+  name           String
+  description    String?
+  kind           CapsuleKind     @default(standing)
+  climate        Climate?
+  tempHighF      Int?
+  tempLowF       Int?
+  createdAt      DateTime        @default(now())
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items          CapsuleItem[]
+  trips          TripCapsule[]
+  outfits        Outfit[]
+  boardPositions BoardPosition[]
+}
+
+// Freeform position of a closet item on a capsule's outfit-building board,
+// independent of whether it currently belongs to a named outfit.
+model BoardPosition {
+  capsuleId    String
+  closetItemId String
+  x            Float
+  y            Float
+  capsule      Capsule    @relation(fields: [capsuleId], references: [id], onDelete: Cascade)
+  closetItem   ClosetItem @relation(fields: [closetItemId], references: [id], onDelete: Cascade)
+
+  @@id([capsuleId, closetItemId])
+}
+
+// A named grouping of items within a capsule, drawn as a lasso rectangle
+// on the board. Logging a wear against an outfit increments every item in it.
+model Outfit {
+  id         String       @id @default(cuid())
+  capsuleId  String
+  name       String
+  createdAt  DateTime     @default(now())
+  capsule    Capsule      @relation(fields: [capsuleId], references: [id], onDelete: Cascade)
+  items      OutfitItem[]
+  wearEvents WearEvent[]
+}
+
+model OutfitItem {
+  outfitId     String
+  closetItemId String
+  outfit       Outfit     @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  closetItem   ClosetItem @relation(fields: [closetItemId], references: [id], onDelete: Cascade)
+
+  @@id([outfitId, closetItemId])
+}
+
+enum WearSource {
+  manual
+  trip_auto
+}
+
+// One wear event = one day something was worn. Logging an outfit's wear
+// fans out to every item in it via WearEventItem; a direct "Wore it today"
+// on a single item (no outfit) creates a WearEventItem-only event.
+model WearEvent {
+  id        String          @id @default(cuid())
+  date      DateTime        @db.Date
+  outfitId  String?
+  source    WearSource
+  corrected Boolean         @default(false)
+  context   String?
+  createdAt DateTime        @default(now())
+  outfit    Outfit?         @relation(fields: [outfitId], references: [id], onDelete: SetNull)
+  items     WearEventItem[]
+}
+
+model WearEventItem {
+  wearEventId  String
+  closetItemId String
+  wearEvent    WearEvent  @relation(fields: [wearEventId], references: [id], onDelete: Cascade)
+  closetItem   ClosetItem @relation(fields: [closetItemId], references: [id], onDelete: Cascade)
+
+  @@id([wearEventId, closetItemId])
 }
 
 model CapsuleItem {
@@ -79,15 +158,30 @@ model CapsuleItem {
 }
 
 model Trip {
-  id          String        @id @default(cuid())
-  userId      String
-  name        String
-  destination String
-  startDate   DateTime
-  endDate     DateTime
-  createdAt   DateTime      @default(now())
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  capsules    TripCapsule[]
+  id             String        @id @default(cuid())
+  userId         String
+  name           String
+  destination    String
+  startDate      DateTime
+  endDate        DateTime
+  autoLogEnabled Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  capsules       TripCapsule[]
+  packingItems   PackingItem[]
+}
+
+// One row per (trip, item) so the packing-list grid never has to
+// conditionally omit the checkbox column.
+model PackingItem {
+  tripId       String
+  closetItemId String
+  packed       Boolean    @default(false)
+  quantity     Int        @default(1)
+  trip         Trip       @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  closetItem   ClosetItem @relation(fields: [closetItemId], references: [id], onDelete: Cascade)
+
+  @@id([tripId, closetItemId])
 }
 
 model TripCapsule {

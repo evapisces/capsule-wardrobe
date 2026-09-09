@@ -53,6 +53,48 @@ export interface WearHistoryEntry {
   corrected: boolean;
 }
 
+export interface BoardItem {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  climate: Climate | null;
+  wearCount: number;
+  onBoard: boolean;
+  x: number | null;
+  y: number | null;
+  outfitId: string | null;
+  offClimate: boolean;
+}
+
+export interface BoardOutfit {
+  id: string;
+  name: string;
+  itemIds: string[];
+}
+
+export interface CapsuleBoard {
+  id: string;
+  name: string;
+  climate: Climate | null;
+  tempHighF: number | null;
+  tempLowF: number | null;
+  climateLabel: string | null;
+  tripLabel: string;
+  offClimateCount: number;
+  items: BoardItem[];
+  outfits: BoardOutfit[];
+}
+
+export interface DrawerItem {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  category: ItemCategory;
+  climate: Climate | null;
+  wearCount: number;
+  matchesClimate: boolean;
+}
+
 export interface ItemCapsuleMembership {
   id: string;
   name: string;

@@ -10,6 +10,9 @@ import type {
   ClosetStats,
   WearHistoryEntry,
   ItemCapsuleMembership,
+  CapsuleBoard,
+  DrawerItem,
+  BoardOutfit,
 } from '@capsule/shared';
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
@@ -113,3 +116,32 @@ export const unlinkCapsuleFromTrip = (tripId: string, capsuleId: string) =>
   request<void>(`/trips/${tripId}/capsules/${capsuleId}`, { method: 'DELETE' });
 export const getTripWeather = (tripId: string) =>
   request<TripWeather>(`/trips/${tripId}/weather`);
+
+// Capsule board (outfit builder)
+export const getCapsuleBoard = (capsuleId: string) =>
+  request<CapsuleBoard>(`/capsules/${capsuleId}/board`);
+export const getCapsuleDrawer = (capsuleId: string, closetId: string, category?: ItemCategory) => {
+  const params = new URLSearchParams({ closetId });
+  if (category) params.set('category', category);
+  return request<DrawerItem[]>(`/capsules/${capsuleId}/drawer?${params.toString()}`);
+};
+export const placeBoardItem = (capsuleId: string, itemId: string, x: number, y: number) =>
+  request<{ x: number; y: number }>(`/capsules/${capsuleId}/board/${itemId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ x, y }),
+  });
+export const removeBoardItem = (capsuleId: string, itemId: string) =>
+  request<void>(`/capsules/${capsuleId}/board/${itemId}`, { method: 'DELETE' });
+export const createOutfit = (capsuleId: string, name: string, itemIds: string[]) =>
+  request<BoardOutfit>(`/capsules/${capsuleId}/outfits`, {
+    method: 'POST',
+    body: JSON.stringify({ name, itemIds }),
+  });
+export const renameOutfit = (outfitId: string, name: string) =>
+  request<BoardOutfit>(`/outfits/${outfitId}`, { method: 'PUT', body: JSON.stringify({ name }) });
+export const deleteOutfit = (outfitId: string) =>
+  request<void>(`/outfits/${outfitId}`, { method: 'DELETE' });
+export const addItemToOutfit = (outfitId: string, itemId: string) =>
+  request<void>(`/outfits/${outfitId}/items/${itemId}`, { method: 'POST' });
+export const removeItemFromOutfit = (outfitId: string, itemId: string) =>
+  request<void>(`/outfits/${outfitId}/items/${itemId}`, { method: 'DELETE' });

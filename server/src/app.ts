@@ -5,6 +5,7 @@ import { errorHandler } from './middleware/errorHandler';
 import closetsRouter from './routes/closets';
 import itemsRouter from './routes/items';
 import capsulesRouter from './routes/capsules';
+import boardRouter, { outfitsRouter } from './routes/board';
 import tripsRouter from './routes/trips';
 import uploadRouter from './routes/upload';
 
@@ -19,6 +20,8 @@ export function createApp() {
   app.use('/api/closets', closetsRouter);
   app.use('/api', itemsRouter);
   app.use('/api/capsules', capsulesRouter);
+  app.use('/api/capsules', boardRouter);
+  app.use('/api/outfits', outfitsRouter);
   app.use('/api/trips', tripsRouter);
   app.use('/api/upload', uploadRouter);
 

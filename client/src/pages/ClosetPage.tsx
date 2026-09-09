@@ -126,7 +126,7 @@ export default function ClosetPage() {
           position: 'fixed', inset: 0, background: 'rgba(23,21,15,0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
         }}>
-          <div style={{ background: 'var(--bg-page)', borderRadius: '14px', overflowY: 'auto', maxHeight: '90vh' }}>
+          <div style={{ background: 'var(--bg-page)', borderRadius: '14px', border: '1px solid var(--line-strong)', overflowY: 'auto', maxHeight: '90vh' }}>
             <ItemUploadForm
               closetId={closetId}
               onSuccess={() => setShowAddForm(false)}

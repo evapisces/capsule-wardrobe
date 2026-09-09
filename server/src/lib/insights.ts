@@ -1,6 +1,7 @@
 import prisma from './prisma';
 import { costPerWear, isDormant } from './wearStats';
 import { computeEfficiency } from './capsuleStats';
+import { signPhotoUrls } from './r2';
 
 export type InsightsRange = '6m' | 'all';
 
@@ -140,8 +141,8 @@ export async function getInsights(closetId: string, range: InsightsRange): Promi
   return {
     loggedWears: distinctWearEventIds.size,
     unloggedDays: unloggedDays ?? 0,
-    mostWorn,
-    sittingIdle,
+    mostWorn: await signPhotoUrls(mostWorn),
+    sittingIdle: await signPhotoUrls(sittingIdle),
     capsuleEfficiency,
   };
 }

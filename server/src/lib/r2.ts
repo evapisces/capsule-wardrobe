@@ -74,3 +74,22 @@ export async function getSignedReadUrl(key: string): Promise<string> {
     logAndRewrap('sign', key, err);
   }
 }
+
+/**
+ * `ClosetItem.photoUrl` stores the stable R2 object key (e.g.
+ * "items/<uuid>.jpg"), not a browsable URL — signed URLs expire (1 hour),
+ * so nothing that has to persist across requests can store one directly.
+ * Every response that includes a photo must sign a fresh URL at read
+ * time. Presigning is pure local HMAC signing (no network round trip to
+ * R2), so doing this per-item on every request is cheap.
+ */
+export async function signPhotoUrl(key: string | null | undefined): Promise<string | null> {
+  if (!key) return null;
+  if (/^https?:\/\//i.test(key)) return key; // already a full URL (legacy/external data)
+  return getSignedReadUrl(key);
+}
+
+/** Signs `photoUrl` on every item in a list, in parallel. */
+export async function signPhotoUrls<T extends { photoUrl: string | null }>(items: T[]): Promise<T[]> {
+  return Promise.all(items.map(async (item) => ({ ...item, photoUrl: await signPhotoUrl(item.photoUrl) })));
+}

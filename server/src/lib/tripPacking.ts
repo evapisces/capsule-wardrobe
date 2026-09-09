@@ -1,5 +1,6 @@
 import prisma from './prisma';
 import { getWearStatsForItems } from './wearStats';
+import { signPhotoUrls } from './r2';
 
 export interface PackingRow {
   itemId: string;
@@ -73,7 +74,7 @@ export async function getTripPacking(tripId: string): Promise<PackingRow[]> {
   }
 
   const rows = await prisma.packingItem.findMany({ where: { tripId } });
-  return rows
+  const result = rows
     .map((row) => {
       const item = itemsById.get(row.closetItemId);
       if (!item) return null;
@@ -88,6 +89,7 @@ export async function getTripPacking(tripId: string): Promise<PackingRow[]> {
       };
     })
     .filter((r): r is PackingRow => r !== null);
+  return signPhotoUrls(result);
 }
 
 /**

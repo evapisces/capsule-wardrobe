@@ -90,6 +90,17 @@ describe('GET /api/items/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body.id).toBe(item.id);
   });
+
+  it('signs a stored R2 key into a browsable URL, never returning the raw key', async () => {
+    const item = await prisma.closetItem.create({
+      data: { closetId, name: 'Photo Item', category: 'shoes', photoUrl: 'items/some-key.jpg' },
+    });
+    const res = await request(app).get(`/api/items/${item.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.photoUrl).not.toBe('items/some-key.jpg');
+    expect(res.body.photoUrl).toMatch(/^https?:\/\//);
+    expect(res.body.photoUrl).toContain('items/some-key.jpg');
+  });
 });
 
 describe('PUT /api/items/:id', () => {

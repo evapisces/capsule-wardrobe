@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { computeEfficiency, climateLabel, isCapsuleClimateSuitable } from '../lib/capsuleStats';
+import { signPhotoUrls } from '../lib/r2';
 import type { Climate } from '@capsule/shared';
 
 const router = Router();
@@ -17,7 +18,7 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
       },
     });
 
-    const result = capsules.map((capsule) => {
+    const result = await Promise.all(capsules.map(async (capsule) => {
       const items = capsule.items.map(({ closetItem }) => closetItem);
       const trip = capsule.trips[0]?.trip;
       const outfitItemPairs = capsule.outfits.flatMap((o) => o.items);
@@ -35,7 +36,7 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
         tempHighF: capsule.tempHighF,
         tempLowF: capsule.tempLowF,
         createdAt: capsule.createdAt,
-        thumbnails: items.slice(0, 5).map((i) => ({ id: i.id, name: i.name, photoUrl: i.photoUrl })),
+        thumbnails: await signPhotoUrls(items.slice(0, 5).map((i) => ({ id: i.id, name: i.name, photoUrl: i.photoUrl }))),
         itemCount: items.length,
         outfitCount: capsule.outfits.length,
         tripLabel: trip
@@ -46,7 +47,7 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
         efficiency: efficiency.score,
         efficiencyReason: efficiency.reason,
       };
-    });
+    }));
 
     res.json(result);
   } catch (err) { next(err); }
@@ -85,14 +86,13 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     });
     if (!capsule) return res.status(404).json({ error: 'Capsule not found' });
 
-    const result = {
-      ...capsule,
-      items: capsule.items.map(({ closetItem }) => {
+    const items = await signPhotoUrls(
+      capsule.items.map(({ closetItem }) => {
         const { _count, ...item } = closetItem;
         return { ...item, capsuleCount: _count.capsules };
-      }),
-    };
-    res.json(result);
+      })
+    );
+    res.json({ ...capsule, items });
   } catch (err) { next(err); }
 });
 

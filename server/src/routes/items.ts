@@ -8,6 +8,7 @@ import {
   logManualItemWear,
   undoManualItemWear,
 } from '../lib/wearStats';
+import { signPhotoUrl, signPhotoUrls } from '../lib/r2';
 
 const router = Router();
 
@@ -46,7 +47,7 @@ router.get('/closets/:id/items', async (req: Request, res: Response, next: NextF
       };
     });
 
-    res.json(result);
+    res.json(await signPhotoUrls(result));
   } catch (err) {
     next(err);
   }
@@ -58,7 +59,7 @@ router.post('/closets/:id/items', async (req: Request, res: Response, next: Next
     const item = await prisma.closetItem.create({
       data: { closetId: req.params.id, ...req.body },
     });
-    res.status(201).json(item);
+    res.status(201).json({ ...item, photoUrl: await signPhotoUrl(item.photoUrl) });
   } catch (err) {
     next(err);
   }
@@ -76,6 +77,7 @@ router.get('/items/:id', async (req: Request, res: Response, next: NextFunction)
     const stats = (await getWearStatsForItems([item.id])).get(item.id)!;
     res.json({
       ...rest,
+      photoUrl: await signPhotoUrl(rest.photoUrl),
       capsuleCount: _count.capsules,
       wearCount: stats.wearCount,
       lastWornAt: stats.lastWornAt,
@@ -184,7 +186,7 @@ router.put('/items/:id', async (req: Request, res: Response, next: NextFunction)
       where: { id: req.params.id },
       data: req.body,
     });
-    res.json(item);
+    res.json({ ...item, photoUrl: await signPhotoUrl(item.photoUrl) });
   } catch (err) {
     next(err);
   }

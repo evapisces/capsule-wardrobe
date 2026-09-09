@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { geocodeDestination, fetchTripTemps, classifyClimate } from '../lib/weather';
 import { getTripDays, setTripDayOutfit } from '../lib/tripSchedule';
 import { getTripPacking, getPackingSuggestions } from '../lib/tripPacking';
+import { signPhotoUrls } from '../lib/r2';
 import type { Climate, CapsuleSuitability } from '@capsule/shared';
 
 const router = Router();
@@ -52,15 +53,12 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     });
     if (!trip) return res.status(404).json({ error: 'Trip not found' });
 
-    const result = {
-      ...trip,
-      capsules: trip.capsules.map(({ capsule }) => ({
-        ...capsule,
-        items: capsule.items.map(({ closetItem }) => closetItem),
-        outfits: capsule.outfits.map((o) => ({ id: o.id, name: o.name })),
-      })),
-    };
-    res.json(result);
+    const capsules = await Promise.all(trip.capsules.map(async ({ capsule }) => ({
+      ...capsule,
+      items: await signPhotoUrls(capsule.items.map(({ closetItem }) => closetItem)),
+      outfits: capsule.outfits.map((o) => ({ id: o.id, name: o.name })),
+    })));
+    res.json({ ...trip, capsules });
   } catch (err) { next(err); }
 });
 

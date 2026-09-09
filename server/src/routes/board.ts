@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { getWearStatsForItems } from '../lib/wearStats';
 import { climateLabel } from '../lib/capsuleStats';
+import { signPhotoUrls } from '../lib/r2';
 
 const router = Router();
 
@@ -68,7 +69,7 @@ router.get('/:id/board', async (req: Request, res: Response, next: NextFunction)
         ? `Trip capsule · ${trip.destination} · ${new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(trip.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
         : 'Standing capsule',
       offClimateCount,
-      items: boardItems,
+      items: await signPhotoUrls(boardItems),
       outfits,
     });
   } catch (err) {
@@ -108,15 +109,17 @@ router.get('/:id/drawer', async (req: Request, res: Response, next: NextFunction
 
     const wearStats = await getWearStatsForItems(items.map((i) => i.id));
     res.json(
-      items.map((item) => ({
-        id: item.id,
-        name: item.name,
-        photoUrl: item.photoUrl,
-        category: item.category,
-        climate: item.climate,
-        wearCount: wearStats.get(item.id)?.wearCount ?? 0,
-        matchesClimate: !capsule.climate || !item.climate || item.climate === capsule.climate,
-      }))
+      await signPhotoUrls(
+        items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          photoUrl: item.photoUrl,
+          category: item.category,
+          climate: item.climate,
+          wearCount: wearStats.get(item.id)?.wearCount ?? 0,
+          matchesClimate: !capsule.climate || !item.climate || item.climate === capsule.climate,
+        }))
+      )
     );
   } catch (err) {
     next(err);

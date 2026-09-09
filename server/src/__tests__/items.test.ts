@@ -153,6 +153,37 @@ describe('DELETE /api/items/:id/wear', () => {
   });
 });
 
+describe('GET /api/items/:id/capsules', () => {
+  it('returns capsules the item belongs to with climate suitability', async () => {
+    const item = await prisma.closetItem.create({
+      data: { closetId, name: 'Capsule Membership Item', category: 'tops', climate: 'cold' },
+    });
+    const matching = await prisma.capsule.create({
+      data: { userId: USER_ID, name: 'Cold Capsule', climate: 'cold' },
+    });
+    const mismatched = await prisma.capsule.create({
+      data: { userId: USER_ID, name: 'Hot Capsule', climate: 'tropical' },
+    });
+    await prisma.capsuleItem.createMany({
+      data: [
+        { capsuleId: matching.id, closetItemId: item.id },
+        { capsuleId: mismatched.id, closetItemId: item.id },
+      ],
+    });
+
+    const res = await request(app).get(`/api/items/${item.id}/capsules`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    const cold = res.body.find((c: { name: string }) => c.name === 'Cold Capsule');
+    const hot = res.body.find((c: { name: string }) => c.name === 'Hot Capsule');
+    expect(cold.suitable).toBe(true);
+    expect(hot.suitable).toBe(false);
+
+    await prisma.capsuleItem.deleteMany({ where: { closetItemId: item.id } });
+    await prisma.capsule.deleteMany({ where: { id: { in: [matching.id, mismatched.id] } } });
+  });
+});
+
 describe('GET /api/items/:id/wear-history', () => {
   it('returns chronological wear events', async () => {
     const item = await prisma.closetItem.create({

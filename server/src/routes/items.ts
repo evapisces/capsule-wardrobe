@@ -87,6 +87,45 @@ router.get('/items/:id', async (req: Request, res: Response, next: NextFunction)
   }
 });
 
+// GET /api/items/:id/capsules — capsules this item belongs to, with climate match
+router.get('/items/:id/capsules', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const item = await prisma.closetItem.findUnique({
+      where: { id: req.params.id },
+      select: { climate: true },
+    });
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
+    const links = await prisma.capsuleItem.findMany({
+      where: { closetItemId: req.params.id },
+      include: {
+        capsule: {
+          include: { _count: { select: { items: true } }, trips: { include: { trip: true } } },
+        },
+      },
+    });
+
+    res.json(
+      links.map(({ capsule }) => {
+        const trip = capsule.trips[0]?.trip;
+        const suitable = !capsule.climate || !item.climate || capsule.climate === item.climate;
+        return {
+          id: capsule.id,
+          name: capsule.name,
+          kind: capsule.kind,
+          itemCount: capsule._count.items,
+          tripLabel: trip
+            ? `${new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(trip.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · trip`
+            : 'Standing capsule',
+          suitable,
+        };
+      })
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/items/:id/wear-history — chronological wear events for an item
 router.get('/items/:id/wear-history', async (req: Request, res: Response, next: NextFunction) => {
   try {

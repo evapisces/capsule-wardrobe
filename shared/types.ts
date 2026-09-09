@@ -53,6 +53,15 @@ export interface WearHistoryEntry {
   corrected: boolean;
 }
 
+export interface ItemCapsuleMembership {
+  id: string;
+  name: string;
+  kind: 'trip' | 'standing';
+  itemCount: number;
+  tripLabel: string;
+  suitable: boolean;
+}
+
 export interface ClosetStats {
   wornThisMonth: number;
   totalItems: number;

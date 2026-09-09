@@ -9,6 +9,7 @@ import type {
   TripWeather,
   ClosetStats,
   WearHistoryEntry,
+  ItemCapsuleMembership,
 } from '@capsule/shared';
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
@@ -70,6 +71,8 @@ export const undoItemWear = (itemId: string) =>
   request<{ wearCount: number; lastWornAt: string | null }>(`/items/${itemId}/wear`, {
     method: 'DELETE',
   });
+export const getItemCapsules = (itemId: string) =>
+  request<ItemCapsuleMembership[]>(`/items/${itemId}/capsules`);
 
 // Photo upload
 export const uploadPhoto = async (file: File): Promise<UploadResponse> => {

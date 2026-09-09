@@ -73,13 +73,34 @@ export interface ClosetStats {
   avgCostPerWear: number | null;
 }
 
+export type CapsuleKind = 'trip' | 'standing';
+
+export interface CapsuleThumbnail {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+}
+
 export interface Capsule {
   id: string;
   userId: string;
   name: string;
   description: string | null;
+  kind?: CapsuleKind;
+  climate?: Climate | null;
+  tempHighF?: number | null;
+  tempLowF?: number | null;
   items?: ClosetItem[];
   createdAt: string;
+  // Present on the list endpoint (GET /api/capsules) only:
+  thumbnails?: CapsuleThumbnail[];
+  itemCount?: number;
+  outfitCount?: number;
+  tripLabel?: string;
+  climateLabel?: string | null;
+  climateSuitable?: boolean;
+  efficiency?: number;
+  efficiencyReason?: string;
 }
 
 export interface Trip {

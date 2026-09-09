@@ -51,6 +51,28 @@ describe('GET /api/capsules', () => {
   });
 });
 
+describe('GET /api/capsules — enriched fields', () => {
+  it('includes thumbnails, counts, climate label and efficiency', async () => {
+    const capsule = await prisma.capsule.create({
+      data: { userId: USER_ID, name: 'Enriched Capsule', climate: 'cold', tempHighF: 38, tempLowF: 29 },
+    });
+    const item = await prisma.closetItem.create({
+      data: { closetId, name: 'Cold Item', category: 'outerwear', climate: 'cold' },
+    });
+    await prisma.capsuleItem.create({ data: { capsuleId: capsule.id, closetItemId: item.id } });
+
+    const res = await request(app).get('/api/capsules');
+    const found = res.body.find((c: { id: string }) => c.id === capsule.id);
+    expect(found.itemCount).toBe(1);
+    expect(found.outfitCount).toBe(0);
+    expect(found.thumbnails).toHaveLength(1);
+    expect(found.climateLabel).toBe('Cold & wet · 38° / 29°');
+    expect(found.climateSuitable).toBe(true);
+    expect(found.efficiency).toBe(0); // in 0 outfits
+    expect(found.efficiencyReason).toBe('1 item not used in any outfit');
+  });
+});
+
 describe('GET /api/capsules/:id', () => {
   it('returns capsule with embedded items and capsuleCount', async () => {
     const capsule = await prisma.capsule.create({

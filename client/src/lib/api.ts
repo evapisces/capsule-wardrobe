@@ -85,7 +85,7 @@ export const uploadPhoto = async (file: File): Promise<UploadResponse> => {
 
 // Capsules
 export const getCapsules = () => request<Capsule[]>('/capsules');
-export const createCapsule = (data: { name: string; description?: string }) =>
+export const createCapsule = (data: { name: string; description?: string; climate?: Climate }) =>
   request<Capsule>('/capsules', { method: 'POST', body: JSON.stringify(data) });
 export const getCapsule = (id: string) => request<Capsule>(`/capsules/${id}`);
 export const updateCapsule = (id: string, data: Partial<Capsule>) =>

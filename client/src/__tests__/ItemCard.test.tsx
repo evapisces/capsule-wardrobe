@@ -24,10 +24,10 @@ describe('ItemCard', () => {
     expect(screen.getByText('White Linen Shirt')).toBeInTheDocument();
   });
 
-  it('shows green border when isInActiveCapsule is true', () => {
-    const { container } = render(<ItemCard item={baseItem} isInActiveCapsule />);
-    const card = container.firstChild as HTMLElement;
-    expect(card.style.border).toContain('2px solid');
+  it('shows green border on the photo when isInActiveCapsule is true', () => {
+    render(<ItemCard item={baseItem} isInActiveCapsule />);
+    const photo = screen.getByText('👕').closest('div') as HTMLElement;
+    expect(photo.style.border).toContain('var(--accent-green)');
   });
 
   it('shows orange badge when capsuleCount > 0 and not in active capsule', () => {

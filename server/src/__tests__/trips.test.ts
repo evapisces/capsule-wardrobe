@@ -102,3 +102,69 @@ describe('POST /api/trips/:id/capsules/:capsuleId', () => {
     expect(res.status).toBe(201);
   });
 });
+
+describe('packing + day strip', () => {
+  let closetId: string;
+  let capsuleId: string;
+  let itemId: string;
+  let tripId: string;
+
+  beforeEach(async () => {
+    const closet = await prisma.closet.create({ data: { userId: USER_ID, name: 'Packing Test Closet' } });
+    closetId = closet.id;
+    const item = await prisma.closetItem.create({ data: { closetId, name: 'Packing Item', category: 'tops' } });
+    itemId = item.id;
+    const capsule = await prisma.capsule.create({ data: { userId: USER_ID, name: 'Packing Capsule' } });
+    capsuleId = capsule.id;
+    await prisma.capsuleItem.create({ data: { capsuleId, closetItemId: itemId } });
+    const outfit = await prisma.outfit.create({
+      data: { capsuleId, name: 'Day one look', items: { create: [{ closetItemId: itemId }] } },
+    });
+    const trip = await prisma.trip.create({
+      data: { userId: USER_ID, name: 'Packing Trip', destination: 'Lisbon', startDate: new Date('2026-01-01'), endDate: new Date('2026-01-03') },
+    });
+    tripId = trip.id;
+    await prisma.tripCapsule.create({ data: { tripId, capsuleId } });
+    void outfit;
+  });
+
+  afterEach(async () => {
+    await prisma.capsule.deleteMany({ where: { id: capsuleId } });
+    await prisma.closetItem.deleteMany({ where: { closetId } });
+    await prisma.closet.delete({ where: { id: closetId } });
+  });
+
+  it('materializes packing rows for every item in the trip\'s capsules', async () => {
+    const res = await request(app).get(`/api/trips/${tripId}/packing`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].itemId).toBe(itemId);
+    expect(res.body[0].packed).toBe(false);
+    expect(res.body[0].neededByOutfits).toEqual(['Day one look']);
+  });
+
+  it('toggles packed state', async () => {
+    const res = await request(app).put(`/api/trips/${tripId}/packing/${itemId}`).send({ packed: true });
+    expect(res.status).toBe(200);
+    expect(res.body.packed).toBe(true);
+  });
+
+  it('returns a day strip covering the trip range', async () => {
+    const res = await request(app).get(`/api/trips/${tripId}/days`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(3);
+    expect(res.body[0].date).toBe('2026-01-01');
+    expect(res.body.every((d: { state: string }) => ['auto', 'corrected', 'today', 'future'].includes(d.state))).toBe(true);
+  });
+
+  it('marks a corrected day when the user picks a different outfit', async () => {
+    const outfit2 = await prisma.outfit.create({ data: { capsuleId, name: 'Alt look' } });
+    const res = await request(app).put(`/api/trips/${tripId}/days/2026-01-02`).send({ outfitId: outfit2.id });
+    expect(res.status).toBe(200);
+
+    const days = await request(app).get(`/api/trips/${tripId}/days`);
+    const day2 = days.body.find((d: { date: string }) => d.date === '2026-01-02');
+    expect(day2.state).toBe('corrected');
+    expect(day2.outfitName).toBe('Alt look');
+  });
+});

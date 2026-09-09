@@ -1,12 +1,16 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getTrip, getCapsules, linkCapsuleToTrip,
   unlinkCapsuleFromTrip, deleteTrip, getTripWeather,
+  getTripDays, setTripDayOutfit, getTripPacking, setPackingItemPacked, getPackingSuggestions,
 } from '../lib/api';
+import { useTopBarActions } from '../lib/topBarSlot';
 import BottomSheet from '../components/BottomSheet';
 import Tooltip from '../components/Tooltip';
+import DayStrip from '../components/DayStrip';
+import PackingList from '../components/PackingList';
 import type { Capsule, ClosetItem, Climate } from '@capsule/shared';
 
 function describeItem(item: ClosetItem): string {
@@ -48,6 +52,24 @@ export default function TripDetailPage() {
     retry: false,
   });
 
+  const { data: days = [] } = useQuery({
+    queryKey: ['tripDays', id],
+    queryFn: () => getTripDays(id!),
+    enabled: !!id,
+  });
+
+  const { data: packing = [] } = useQuery({
+    queryKey: ['tripPacking', id],
+    queryFn: () => getTripPacking(id!),
+    enabled: !!id,
+  });
+
+  const { data: suggestions = [] } = useQuery({
+    queryKey: ['tripPackingSuggestions', id],
+    queryFn: () => getPackingSuggestions(id!),
+    enabled: !!id,
+  });
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['trip', id] });
     qc.invalidateQueries({ queryKey: ['tripWeather', id] });
@@ -68,6 +90,23 @@ export default function TripDetailPage() {
     onSuccess: () => navigate('/trips'),
   });
 
+  const dayPickMutation = useMutation({
+    mutationFn: ({ date, outfitId }: { date: string; outfitId: string }) => setTripDayOutfit(id!, date, outfitId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tripDays', id] }),
+  });
+
+  const packToggleMutation = useMutation({
+    mutationFn: ({ itemId, packed }: { itemId: string; packed: boolean }) => setPackingItemPacked(id!, itemId, packed),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tripPacking', id] }),
+  });
+
+  useTopBarActions(
+    <>
+      <button className="btn-secondary" onClick={() => window.print()}>Print list</button>
+      <button className="btn-primary" onClick={() => navigate(-1)}>Done</button>
+    </>
+  );
+
   const toggleExpand = (capsuleId: string) => {
     setExpandedCapsuleIds((prev) => {
       const next = new Set(prev);
@@ -77,58 +116,59 @@ export default function TripDetailPage() {
     });
   };
 
-  if (isLoading || !trip) return <p style={{ padding: '24px', color: '#aaa' }}>Loading…</p>;
+  if (isLoading || !trip) return <p style={{ padding: '28px', color: 'var(--ink-tertiary)', fontSize: '13px' }}>Loading…</p>;
 
   const linkedCapsuleIds = new Set((trip.capsules ?? []).map((c) => c.id));
   const unlinkableCapsules = allCapsules.filter((c) => !linkedCapsuleIds.has(c.id));
+  const outfitOptions = (trip.capsules ?? []).flatMap((c) => c.outfits ?? []);
+  const offClimateCapsuleCount = weather?.capsuleSuitability.filter((s) => !s.suitable).length ?? 0;
+  const today = new Date();
+  const dayOfTrip = Math.min(
+    days.length,
+    Math.max(1, Math.floor((today.getTime() - new Date(trip.startDate).getTime()) / 86400000) + 1)
+  );
 
   return (
-    <div style={{ padding: '24px', maxWidth: '700px', margin: '0 auto' }}>
-      <button onClick={() => navigate(-1)}
-        style={{ marginBottom: '16px', background: 'none', border: 'none', color: '#0bcddb', fontWeight: 600 }}>
-        ← Back
-      </button>
-
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '4px' }}>{trip.name}</h1>
-        <p style={{ color: '#888', fontSize: '14px' }}>
-          {trip.destination} · {new Date(trip.startDate).toLocaleDateString()} → {new Date(trip.endDate).toLocaleDateString()}
-        </p>
+    <div style={{ padding: '28px', maxWidth: '1200px', margin: '0 auto' }}>
+      <Link to="/trips" style={{ fontSize: '13px', color: 'var(--ink-tertiary)' }}>Trips</Link>
+      <div className="eyebrow" style={{ marginTop: '10px' }}>Trip · day {dayOfTrip} of {days.length || '—'}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginTop: '4px' }}>
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '42px', fontWeight: 400, color: 'var(--ink-primary)', lineHeight: 1 }}>
+          {trip.name}
+        </h1>
+        {weather && <span className="pill-green">{weather.predictedClimate} · {Math.round(weather.avgHighF)}° / {Math.round(weather.avgLowF)}°</span>}
+        {offClimateCapsuleCount > 0 && <span className="pill-amber">{offClimateCapsuleCount} capsule{offClimateCapsuleCount === 1 ? '' : 's'} off-climate</span>}
       </div>
+      <p style={{ fontSize: '14px', color: 'var(--ink-tertiary)', marginTop: '4px', marginBottom: '22px' }}>
+        {trip.destination} · {new Date(trip.startDate).toLocaleDateString()} – {new Date(trip.endDate).toLocaleDateString()}
+      </p>
 
       <div style={{
         borderRadius: '14px', marginBottom: '24px', padding: '16px 20px',
         background: weather ? CLIMATE_THEME[weather.predictedClimate].gradient : '#fff',
-        border: weather ? 'none' : '1px solid #e0d8cc',
+        border: weather ? 'none' : '1px solid var(--line-strong)',
       }}>
         <h2 style={{
           fontSize: '11px', fontWeight: 700, marginBottom: '10px', letterSpacing: '0.05em',
-          textTransform: 'uppercase', color: weather ? 'rgba(0,0,0,0.5)' : '#888',
+          textTransform: 'uppercase', color: weather ? 'rgba(0,0,0,0.5)' : 'var(--ink-tertiary)',
         }}>
           Expected Weather
         </h2>
-        {weatherLoading && <p style={{ color: '#aaa', fontSize: '13px' }}>☁️ Checking forecast…</p>}
+        {weatherLoading && <p style={{ color: 'var(--ink-tertiary)', fontSize: '13px' }}>☁️ Checking forecast…</p>}
         {weatherError && (
-          <p style={{ color: '#aaa', fontSize: '13px' }}>
+          <p style={{ color: 'var(--ink-tertiary)', fontSize: '13px' }}>
             🤷 Couldn't find weather data for "{trip.destination}".
           </p>
         )}
         {weather && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ fontSize: '38px', lineHeight: 1 }}>
-              {CLIMATE_THEME[weather.predictedClimate].icon}
-            </div>
+            <div style={{ fontSize: '38px', lineHeight: 1 }}>{CLIMATE_THEME[weather.predictedClimate].icon}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: '26px', fontWeight: 800, color: '#2b2b2b', lineHeight: 1.15 }}>
                 {Math.round(weather.avgHighF)}°
-                <span style={{ fontSize: '16px', fontWeight: 600, color: 'rgba(0,0,0,0.45)' }}>
-                  {' '}/ {Math.round(weather.avgLowF)}°F
-                </span>
+                <span style={{ fontSize: '16px', fontWeight: 600, color: 'rgba(0,0,0,0.45)' }}> / {Math.round(weather.avgLowF)}°F</span>
               </div>
-              <div style={{
-                fontSize: '13px', color: 'rgba(0,0,0,0.6)', marginTop: '2px',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
+              <div style={{ fontSize: '13px', color: 'rgba(0,0,0,0.6)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 📍 {weather.resolvedLocation}
               </div>
             </div>
@@ -148,21 +188,56 @@ export default function TripDetailPage() {
         )}
       </div>
 
+      {trip.autoLogEnabled && (
+        <div style={{
+          background: 'var(--accent-green-tint)', borderRadius: '12px', padding: '14px 18px',
+          marginBottom: '26px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-green)', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--accent-green-ink)' }}>Auto-logging wears while this trip is active</div>
+              <div style={{ fontSize: '12.5px', color: 'var(--accent-green)' }}>Each day's outfit is recorded from your linked capsules. Correct any day in the strip below.</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {days.length > 0 && (
+        <div style={{ marginBottom: '30px' }}>
+          <DayStrip days={days} outfitOptions={outfitOptions} onPick={(date, outfitId) => dayPickMutation.mutate({ date, outfitId })} />
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '26px', marginBottom: '32px' }}>
+        <PackingList rows={packing} onToggle={(itemId, packed) => packToggleMutation.mutate({ itemId, packed })} />
+        <div>
+          <div className="section-label" style={{ marginBottom: '10px' }}>From your last trips</div>
+          <div style={{ border: '1px solid var(--line-soft)', borderRadius: '11px', padding: '16px' }}>
+            {suggestions.length === 0 ? (
+              <p style={{ fontSize: '12.5px', color: 'var(--ink-tertiary)' }}>No suggestions yet — wear a few items first.</p>
+            ) : (
+              suggestions.map((s) => (
+                <div key={s.itemId} style={{ marginBottom: '10px' }}>
+                  <div style={{ fontSize: '13.5px', fontWeight: 500, color: 'var(--ink-primary)' }}>{s.name}</div>
+                  <div style={{ fontSize: '12.5px', color: 'var(--ink-tertiary)' }}>{s.reason}</div>
+                </div>
+              ))
+            )}
+            <p style={{ fontSize: '12px', color: 'var(--ink-tertiary)', marginTop: '10px' }}>
+              Built from what you actually wore, not what you packed.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <h2 style={{ fontSize: '17px', fontWeight: 700 }}>Capsules</h2>
-        <button
-          onClick={() => setSheetOpen(true)}
-          style={{ padding: '6px 14px', background: '#0bcddb', color: '#fff',
-            border: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '13px' }}
-        >
-          + Link Capsule
-        </button>
+        <span className="section-label">Capsules</span>
+        <button className="btn-secondary" onClick={() => setSheetOpen(true)}>Link capsule</button>
       </div>
 
       {(trip.capsules ?? []).length === 0 && (
-        <p style={{ color: '#aaa', fontSize: '14px', marginBottom: '20px' }}>
-          No capsules linked yet.
-        </p>
+        <p style={{ color: 'var(--ink-tertiary)', fontSize: '13px', marginBottom: '20px' }}>No capsules linked yet.</p>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '32px' }}>
@@ -171,68 +246,59 @@ export default function TripDetailPage() {
           const items: ClosetItem[] = capsule.items ?? [];
           const suitability = weather?.capsuleSuitability.find((c) => c.capsuleId === capsule.id);
           return (
-            <div key={capsule.id}
-              style={{ border: '1px solid #e0d8cc', borderRadius: '10px', background: '#fff', overflow: 'hidden' }}>
+            <div key={capsule.id} style={{ border: '1px solid var(--line-soft)', borderRadius: '10px', overflow: 'hidden' }}>
               <div
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '14px 16px', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', cursor: 'pointer' }}
                 onClick={() => toggleExpand(capsule.id)}
               >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '14px' }}>{capsule.name}</span>
+                    <span style={{ fontWeight: 500, fontSize: '14px', color: 'var(--ink-primary)' }}>{capsule.name}</span>
                     {suitability && suitability.itemClimates.length > 0 && weather && (
                       <Tooltip content={suitability.suitable
                         ? `This capsule's items are tagged for ${suitability.itemClimates.join(', ')} weather, which matches the ${weather.predictedClimate} conditions expected for this trip.`
                         : `This capsule's items are tagged for ${suitability.itemClimates.join(', ')} weather, but this trip is expected to be ${weather.predictedClimate}. You may want to swap in different items.`}
                       >
-                        <span
-                          style={{
-                            fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
-                            background: suitability.suitable ? '#e3f7ee' : '#fdf0e3',
-                            color: suitability.suitable ? '#1b9e6b' : '#c47f1a',
-                            cursor: 'help',
-                          }}
-                        >
+                        <span className={suitability.suitable ? 'pill-green' : 'pill-amber'} style={{ cursor: 'help' }}>
                           {suitability.suitable ? '✓ Good fit' : '⚠ Mismatch'}
                         </span>
                       </Tooltip>
                     )}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#aaa', marginTop: '2px' }}>
+                  <div style={{ fontSize: '12.5px', color: 'var(--ink-tertiary)', marginTop: '2px' }}>
                     {items.length} item{items.length !== 1 ? 's' : ''}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <button
                     onClick={(e) => { e.stopPropagation(); unlinkMutation.mutate(capsule.id); }}
-                    style={{ padding: '4px 10px', fontSize: '12px', color: '#e63946',
-                      border: '1px solid #e63946', borderRadius: '4px', background: '#fff' }}
+                    className="btn-secondary"
+                    style={{ height: '28px', padding: '0 12px', fontSize: '12px' }}
                   >
                     Unlink
                   </button>
-                  <span style={{ fontSize: '12px', color: '#aaa' }}>{isExpanded ? '▲' : '▼'}</span>
+                  <span style={{ fontSize: '12px', color: 'var(--ink-tertiary)' }}>{isExpanded ? '▲' : '▼'}</span>
                 </div>
               </div>
 
               {isExpanded && (
-                <div style={{ padding: '0 16px 14px', borderTop: '1px solid #f0ebe3' }}>
+                <div style={{ padding: '0 16px 14px', borderTop: '1px solid var(--line-hairline)' }}>
                   {items.length === 0 ? (
-                    <p style={{ color: '#aaa', fontSize: '13px', paddingTop: '10px' }}>No items in this capsule.</p>
+                    <p style={{ color: 'var(--ink-tertiary)', fontSize: '13px', paddingTop: '10px' }}>No items in this capsule.</p>
                   ) : (
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '10px' }}>
                       {items.map((item: ClosetItem) => (
                         <Tooltip key={item.id} content={describeItem(item)}>
-                          <div
-                            style={{ width: '52px', height: '52px', borderRadius: '8px',
-                              background: '#e0d8cc', display: 'flex', alignItems: 'center',
-                              justifyContent: 'center', fontSize: '20px', overflow: 'hidden',
-                              cursor: 'help' }}
-                          >
+                          <div style={{
+                            width: '52px', height: '52px', borderRadius: '8px',
+                            background: item.photoUrl ? undefined : 'repeating-linear-gradient(135deg, #EDE9E1 0 7px, #F6F3ED 7px 14px)',
+                            border: '1px solid var(--line-strong)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', overflow: 'hidden',
+                            cursor: 'help',
+                          }}>
                             {item.photoUrl
                               ? <img src={item.photoUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                              : '👕'
-                            }
+                              : '👕'}
                           </div>
                         </Tooltip>
                       ))}
@@ -248,19 +314,14 @@ export default function TripDetailPage() {
       <button
         onClick={() => deleteMutation.mutate()}
         disabled={deleteMutation.isPending}
-        style={{ padding: '8px 18px', background: '#e63946', color: '#fff',
-          border: 'none', borderRadius: '6px', fontWeight: 600 }}
+        style={{ background: 'none', border: 'none', color: 'var(--accent-amber)', fontSize: '13px', padding: 0, cursor: 'pointer' }}
       >
-        {deleteMutation.isPending ? 'Deleting…' : 'Delete Trip'}
+        {deleteMutation.isPending ? 'Deleting…' : 'Delete trip'}
       </button>
 
-      <BottomSheet
-        isOpen={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        title="Link a Capsule"
-      >
+      <BottomSheet isOpen={sheetOpen} onClose={() => setSheetOpen(false)} title="Link a Capsule">
         {unlinkableCapsules.length === 0 ? (
-          <p style={{ color: '#aaa', fontSize: '14px' }}>All capsules are already linked.</p>
+          <p style={{ color: 'var(--ink-tertiary)', fontSize: '14px' }}>All capsules are already linked.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {unlinkableCapsules.map((capsule: Capsule) => (
@@ -268,13 +329,10 @@ export default function TripDetailPage() {
                 key={capsule.id}
                 onClick={() => linkMutation.mutate(capsule.id)}
                 disabled={linkMutation.isPending}
-                style={{ textAlign: 'left', padding: '12px 14px', borderRadius: '8px',
-                  border: '1px solid #e0d8cc', background: '#fff', cursor: 'pointer' }}
+                style={{ textAlign: 'left', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--line-strong)', background: '#fff', cursor: 'pointer' }}
               >
-                <div style={{ fontWeight: 700 }}>{capsule.name}</div>
-                {capsule.description && (
-                  <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>{capsule.description}</div>
-                )}
+                <div style={{ fontWeight: 500 }}>{capsule.name}</div>
+                {capsule.description && <div style={{ fontSize: '12px', color: 'var(--ink-tertiary)', marginTop: '2px' }}>{capsule.description}</div>}
               </button>
             ))}
           </div>

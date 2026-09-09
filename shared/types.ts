@@ -104,6 +104,33 @@ export interface ItemCapsuleMembership {
   suitable: boolean;
 }
 
+export type TripDayState = 'auto' | 'corrected' | 'today' | 'future';
+
+export interface TripDay {
+  date: string;
+  dayNumber: number;
+  state: TripDayState;
+  outfitId: string | null;
+  outfitName: string | null;
+}
+
+export interface PackingRow {
+  itemId: string;
+  name: string;
+  category: ItemCategory;
+  photoUrl: string | null;
+  packed: boolean;
+  quantity: number;
+  neededByOutfits: string[];
+}
+
+export interface PackingSuggestion {
+  itemId: string;
+  name: string;
+  reason: string;
+  action: 'pack' | 'leave';
+}
+
 export interface ClosetStats {
   wornThisMonth: number;
   totalItems: number;
@@ -133,6 +160,7 @@ export interface Capsule {
   tempHighF?: number | null;
   tempLowF?: number | null;
   items?: ClosetItem[];
+  outfits?: { id: string; name: string }[];
   createdAt: string;
   // Present on the list endpoint (GET /api/capsules) only:
   thumbnails?: CapsuleThumbnail[];
@@ -152,6 +180,7 @@ export interface Trip {
   destination: string;
   startDate: string;
   endDate: string;
+  autoLogEnabled?: boolean;
   capsules?: Capsule[];
   createdAt: string;
 }

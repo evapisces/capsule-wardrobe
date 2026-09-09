@@ -1,6 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { geocodeDestination, fetchTripTemps, classifyClimate } from '../lib/weather';
+import { getTripDays, setTripDayOutfit } from '../lib/tripSchedule';
+import { getTripPacking, getPackingSuggestions } from '../lib/tripPacking';
 import type { Climate, CapsuleSuitability } from '@capsule/shared';
 
 const router = Router();
@@ -41,6 +43,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
                 items: {
                   include: { closetItem: true },
                 },
+                outfits: true,
               },
             },
           },
@@ -54,6 +57,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
       capsules: trip.capsules.map(({ capsule }) => ({
         ...capsule,
         items: capsule.items.map(({ closetItem }) => closetItem),
+        outfits: capsule.outfits.map((o) => ({ id: o.id, name: o.name })),
       })),
     };
     res.json(result);
@@ -137,6 +141,53 @@ router.get('/:id/weather', async (req: Request, res: Response, next: NextFunctio
     });
 
     res.json({ source, resolvedLocation, avgHighF, avgLowF, predictedClimate, capsuleSuitability });
+  } catch (err) { next(err); }
+});
+
+// GET /api/trips/:id/days — the day strip (auto-logged / corrected / today / future)
+router.get('/:id/days', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const days = await getTripDays(req.params.id);
+    res.json(days);
+  } catch (err) { next(err); }
+});
+
+// PUT /api/trips/:id/days/:date — pick a different outfit for a day (marks it "corrected")
+router.put('/:id/days/:date', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { outfitId } = req.body as { outfitId: string };
+    const wearEvent = await setTripDayOutfit(req.params.id, req.params.date, outfitId);
+    res.json(wearEvent);
+  } catch (err) { next(err); }
+});
+
+// GET /api/trips/:id/packing — the packing list
+router.get('/:id/packing', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const rows = await getTripPacking(req.params.id);
+    res.json(rows);
+  } catch (err) { next(err); }
+});
+
+// PUT /api/trips/:id/packing/:itemId — toggle/set packed
+router.put('/:id/packing/:itemId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { packed } = req.body as { packed: boolean };
+    const row = await prisma.packingItem.upsert({
+      where: { tripId_closetItemId: { tripId: req.params.id, closetItemId: req.params.itemId } },
+      update: { packed },
+      create: { tripId: req.params.id, closetItemId: req.params.itemId, packed },
+    });
+    res.json(row);
+  } catch (err) { next(err); }
+});
+
+// GET /api/trips/:id/packing-suggestions
+router.get('/:id/packing-suggestions', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const packing = await getTripPacking(req.params.id);
+    const suggestions = await getPackingSuggestions(req.params.id, new Set(packing.map((p) => p.itemId)));
+    res.json(suggestions);
   } catch (err) { next(err); }
 });
 

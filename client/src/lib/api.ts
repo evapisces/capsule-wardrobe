@@ -13,6 +13,9 @@ import type {
   CapsuleBoard,
   DrawerItem,
   BoardOutfit,
+  TripDay,
+  PackingRow,
+  PackingSuggestion,
 } from '@capsule/shared';
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
@@ -145,3 +148,13 @@ export const addItemToOutfit = (outfitId: string, itemId: string) =>
   request<void>(`/outfits/${outfitId}/items/${itemId}`, { method: 'POST' });
 export const removeItemFromOutfit = (outfitId: string, itemId: string) =>
   request<void>(`/outfits/${outfitId}/items/${itemId}`, { method: 'DELETE' });
+
+// Trip day strip + packing
+export const getTripDays = (tripId: string) => request<TripDay[]>(`/trips/${tripId}/days`);
+export const setTripDayOutfit = (tripId: string, date: string, outfitId: string) =>
+  request<void>(`/trips/${tripId}/days/${date}`, { method: 'PUT', body: JSON.stringify({ outfitId }) });
+export const getTripPacking = (tripId: string) => request<PackingRow[]>(`/trips/${tripId}/packing`);
+export const setPackingItemPacked = (tripId: string, itemId: string, packed: boolean) =>
+  request<void>(`/trips/${tripId}/packing/${itemId}`, { method: 'PUT', body: JSON.stringify({ packed }) });
+export const getPackingSuggestions = (tripId: string) =>
+  request<PackingSuggestion[]>(`/trips/${tripId}/packing-suggestions`);

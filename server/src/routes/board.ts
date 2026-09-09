@@ -24,19 +24,26 @@ router.get('/:id/board', async (req: Request, res: Response, next: NextFunction)
     const wearStats = await getWearStatsForItems([...closetItemById.keys()]);
     const positionByItem = new Map(capsule.boardPositions.map((p) => [p.closetItemId, p]));
 
-    const boardItems = capsule.items.map(({ closetItem }) => {
+    // Every capsule member belongs on the board — the drawer already
+    // excludes members entirely, so there's no third "member but not on the
+    // board" state. Items added before board positions existed (or via the
+    // plain add/remove flow) get a computed grid slot as a default; it's
+    // not persisted until the user actually drags the chip.
+    const boardItems = capsule.items.map(({ closetItem }, index) => {
       const pos = positionByItem.get(closetItem.id);
       const outfit = capsule.outfits.find((o) => o.items.some((oi) => oi.closetItemId === closetItem.id));
       const offClimate = !!capsule.climate && !!closetItem.climate && closetItem.climate !== capsule.climate;
+      const defaultX = 0.05 + (index % 5) * 0.18;
+      const defaultY = 0.08 + Math.floor(index / 5) * 0.32;
       return {
         id: closetItem.id,
         name: closetItem.name,
         photoUrl: closetItem.photoUrl,
         climate: closetItem.climate,
         wearCount: wearStats.get(closetItem.id)?.wearCount ?? 0,
-        onBoard: !!pos,
-        x: pos?.x ?? null,
-        y: pos?.y ?? null,
+        onBoard: true,
+        x: pos?.x ?? defaultX,
+        y: pos?.y ?? defaultY,
         outfitId: outfit?.id ?? null,
         offClimate,
       };

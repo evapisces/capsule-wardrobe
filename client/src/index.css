@@ -143,6 +143,9 @@ input, select, textarea { font-family: inherit; }
   font-weight: 500;
 }
 
+.board-chip-remove { display: none; }
+.board-chip:hover .board-chip-remove { display: flex; }
+
 .pill-amber {
   display: inline-flex;
   align-items: center;

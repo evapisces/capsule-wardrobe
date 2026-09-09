@@ -16,6 +16,7 @@ import type {
   TripDay,
   PackingRow,
   PackingSuggestion,
+  InsightsSummary,
 } from '@capsule/shared';
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
@@ -67,6 +68,8 @@ export const deleteClosetItem = (id: string) =>
   request<void>(`/items/${id}`, { method: 'DELETE' });
 export const getClosetStats = (closetId: string) =>
   request<ClosetStats>(`/closets/${closetId}/stats`);
+export const getInsights = (closetId: string, range: '6m' | 'all') =>
+  request<InsightsSummary>(`/closets/${closetId}/insights?range=${range}`);
 export const getItemWearHistory = (itemId: string) =>
   request<WearHistoryEntry[]>(`/items/${itemId}/wear-history`);
 export const logItemWear = (itemId: string) =>

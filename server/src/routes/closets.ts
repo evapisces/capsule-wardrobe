@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { getWearStatsForItems, costPerWear, isDormant, DORMANT_THRESHOLD_DAYS } from '../lib/wearStats';
+import { getInsights, type InsightsRange } from '../lib/insights';
 
 const router = Router();
 const USER_ID = 'user_1'; // hardcoded for v1; replace with req.user.id when auth added
@@ -21,6 +22,17 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       data: { userId: USER_ID, name, description: description ?? null },
     });
     res.status(201).json(closet);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/closets/:id/insights — most-worn / sitting-idle / capsule efficiency
+router.get('/:id/insights', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const range = (req.query.range as InsightsRange) === 'all' ? 'all' : '6m';
+    const summary = await getInsights(req.params.id, range);
+    res.json(summary);
   } catch (err) {
     next(err);
   }

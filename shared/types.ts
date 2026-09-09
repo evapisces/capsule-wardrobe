@@ -131,6 +131,36 @@ export interface PackingSuggestion {
   action: 'pack' | 'leave';
 }
 
+export interface MostWornRow {
+  itemId: string;
+  name: string;
+  photoUrl: string | null;
+  wearCount: number;
+  costPerWear: number | null;
+}
+
+export interface SittingIdleRow {
+  itemId: string;
+  name: string;
+  photoUrl: string | null;
+  reason: string;
+  actionLabel: string;
+}
+
+export interface CapsuleEfficiencyRow {
+  capsuleId: string;
+  name: string;
+  efficiency: number;
+}
+
+export interface InsightsSummary {
+  loggedWears: number;
+  unloggedDays: number;
+  mostWorn: MostWornRow[];
+  sittingIdle: SittingIdleRow[];
+  capsuleEfficiency: CapsuleEfficiencyRow[];
+}
+
 export interface ClosetStats {
   wornThisMonth: number;
   totalItems: number;

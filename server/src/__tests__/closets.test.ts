@@ -96,6 +96,34 @@ describe('GET /api/closets/:id/stats', () => {
   });
 });
 
+describe('GET /api/closets/:id/insights', () => {
+  it('returns most-worn, sitting-idle, and capsule efficiency', async () => {
+    const closet = await prisma.closet.create({ data: { userId: USER_ID, name: 'Insights Closet' } });
+    const worn = await prisma.closetItem.create({
+      data: { closetId: closet.id, name: 'Worn Item', category: 'tops', pricePaid: 40 },
+    });
+    const idle = await prisma.closetItem.create({
+      data: { closetId: closet.id, name: 'Idle Item', category: 'tops' },
+    });
+    await request(app).post(`/api/items/${worn.id}/wear`);
+
+    const capsule = await prisma.capsule.create({ data: { userId: USER_ID, name: 'Insights Capsule' } });
+    await prisma.capsuleItem.create({ data: { capsuleId: capsule.id, closetItemId: worn.id } });
+
+    const res = await request(app).get(`/api/closets/${closet.id}/insights?range=all`);
+    expect(res.status).toBe(200);
+    expect(res.body.loggedWears).toBe(1);
+    expect(res.body.mostWorn[0].itemId).toBe(worn.id);
+    expect(res.body.sittingIdle.some((r: { itemId: string }) => r.itemId === idle.id)).toBe(true);
+    expect(res.body.capsuleEfficiency.find((c: { capsuleId: string }) => c.capsuleId === capsule.id)).toBeTruthy();
+
+    await prisma.capsuleItem.deleteMany({ where: { capsuleId: capsule.id } });
+    await prisma.capsule.delete({ where: { id: capsule.id } });
+    await prisma.closetItem.deleteMany({ where: { closetId: closet.id } });
+    await prisma.closet.delete({ where: { id: closet.id } });
+  });
+});
+
 describe('DELETE /api/closets/:id', () => {
   it('deletes a closet', async () => {
     const closet = await prisma.closet.create({

@@ -3,3 +3,9 @@ dist/
 .env
 .env.local
 *.env
+
+# Belt-and-suspenders: client type-checks with `tsc --noEmit`, so these should
+# never be produced. Kept in case a stray `tsc` invocation emits alongside sources.
+client/src/**/*.js
+client/src/**/*.js.map
+shared/types.js

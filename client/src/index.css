@@ -40,6 +40,12 @@
   /* Shadow */
   --shadow-frame: 0 18px 40px -28px rgba(20,18,15,0.4);
   --shadow-chip: 0 6px 14px -10px rgba(20,18,15,0.5);
+
+  /* Responsive breakpoints — mobile < 768px, tablet 768–1023px, desktop >= 1024px */
+  --bp-mobile-max: 767px;
+  --bp-tablet-min: 768px;
+  --bp-tablet-max: 1023px;
+  --bp-desktop-min: 1024px;
 }
 
 body {
@@ -145,6 +151,31 @@ input, select, textarea { font-family: inherit; }
 
 .board-chip-remove { display: none; }
 .board-chip:hover .board-chip-remove { display: flex; }
+
+/* Touch pointers can't hover — keep the remove affordance permanently visible. */
+@media (hover: none) {
+  .board-chip-remove { display: flex; }
+}
+
+/* Below the desktop breakpoint, grow tap targets to the 44px comfortable
+   minimum without changing their font size. */
+@media (max-width: 1023px) {
+  .btn-primary,
+  .btn-secondary {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .chip {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* dvh tracks the iOS Safari URL bar; keep a vh fallback for older engines. */
+.bottom-sheet {
+  max-height: 85vh;
+  max-height: 85dvh;
+}
 
 .pill-amber {
   display: inline-flex;

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useBreakpoint } from '../lib/useIsMobile';
 
 interface Props {
   content: string;
@@ -13,6 +14,20 @@ export default function Tooltip({ content, children }: Props) {
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLSpanElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
+  const breakpoint = useBreakpoint();
+
+  useEffect(() => {
+    if (!open) return;
+    // The bubble position is computed once from getBoundingClientRect, so any
+    // scroll or resize invalidates it — dismiss rather than let it drift.
+    const dismiss = () => setOpen(false);
+    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('resize', dismiss);
+    return () => {
+      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('resize', dismiss);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -69,7 +84,9 @@ export default function Tooltip({ content, children }: Props) {
             background: '#2b2b2b', color: '#fff', fontSize: '12px', lineHeight: 1.4,
             padding: '8px 10px', borderRadius: '6px', zIndex: 400,
             boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-            width: 'max-content', maxWidth: '220px', whiteSpace: 'normal', textAlign: 'center',
+            width: 'max-content',
+            maxWidth: breakpoint === 'mobile' ? 'min(220px, calc(100vw - 16px))' : '220px',
+            whiteSpace: 'normal', textAlign: 'center',
             pointerEvents: 'none',
           }}
         >

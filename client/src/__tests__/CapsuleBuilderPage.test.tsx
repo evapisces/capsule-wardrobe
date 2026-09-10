@@ -103,6 +103,60 @@ describe('CapsuleBuilderPage — instructional copy reflects the active layout (
   });
 });
 
+describe('CapsuleBuilderPage — tablet list density (AC 5)', () => {
+  it('uses a 2-column outfit layout and a 3-column drawer grid at tablet', async () => {
+    mm = installMatchMedia(768);
+    renderPage();
+
+    const list = await screen.findByTestId('outfit-list');
+    const outfitGrid = list.firstElementChild as HTMLElement;
+    expect(outfitGrid.style.gridTemplateColumns).toBe('1fr 1fr');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    const drawerItem = await screen.findByText('Blue tee');
+    // Blue tee -> label div -> item cell -> drawer grid
+    const drawerGrid = drawerItem.parentElement!.parentElement as HTMLElement;
+    expect(drawerGrid.style.gridTemplateColumns).toBe('repeat(3, 1fr)');
+  });
+
+  it('uses a single-column outfit layout at mobile', async () => {
+    mm = installMatchMedia(375);
+    renderPage();
+
+    const list = await screen.findByTestId('outfit-list');
+    const outfitGrid = list.firstElementChild as HTMLElement;
+    expect(outfitGrid.style.gridTemplateColumns).toBe('1fr');
+  });
+});
+
+describe('CapsuleBuilderPage — desktop canvas sizing (AC 6)', () => {
+  it('gives the board canvas a clamp() height and keeps the 1fr 272px split', async () => {
+    mm = installMatchMedia(1024);
+    renderPage();
+
+    const canvas = await screen.findByTestId('board-canvas');
+    expect(canvas.style.height).toBe('clamp(452px, 55vh, 720px)');
+
+    const split = canvas.parentElement!.parentElement as HTMLElement;
+    expect(split.style.gridTemplateColumns).toBe('1fr 272px');
+  });
+});
+
+describe('CapsuleBuilderPage — drawer touch targets (AC 8)', () => {
+  it('gives drawer category chips and the climate toggle a 44px minimum height at tablet', async () => {
+    mm = installMatchMedia(768);
+    renderPage();
+    await screen.findByTestId('outfit-list');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add item' }));
+
+    for (const label of ['Tops', 'Bottoms', 'Shoes', 'Layers']) {
+      expect((await screen.findByRole('button', { name: label })).style.minHeight).toBe('44px');
+    }
+    expect(screen.getByRole('button', { name: 'Show all' }).style.minHeight).toBe('44px');
+  });
+});
+
 describe('CapsuleBuilderPage — touch placement (AC 9)', () => {
   it('places a tapped drawer item at a computed grid coordinate, not the hardcoded 0.1/0.1', async () => {
     mm = installMatchMedia(768);

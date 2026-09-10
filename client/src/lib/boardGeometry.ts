@@ -80,3 +80,35 @@ export function nextChipPlacement(
     y: (row * stepY) / safeHeight,
   };
 }
+
+/**
+ * Non-overlapping placement for a freshly added chip that is robust to prior
+ * removals. Walks the same deterministic grid as `nextChipPlacement`, but skips
+ * any grid slot whose chip rect would overlap a chip that is already on the
+ * board — so it reuses a hole left by a removed chip instead of colliding with a
+ * later one. Deletion-free sequences behave exactly like `nextChipPlacement`.
+ */
+export function nextOpenChipPlacement(
+  items: BoardItem[],
+  boardWidth: number = BOARD_FALLBACK_WIDTH,
+  boardHeight: number = BOARD_FALLBACK_HEIGHT
+): { x: number; y: number } {
+  const safeWidth = boardWidth > 0 ? boardWidth : BOARD_FALLBACK_WIDTH;
+  const safeHeight = boardHeight > 0 ? boardHeight : BOARD_FALLBACK_HEIGHT;
+  const placed = items
+    .filter((i) => i.x != null && i.y != null)
+    .map((i) => itemPixelRect(i, safeWidth, safeHeight));
+
+  // A freely-dragged chip can straddle a few grid slots, so bound the walk
+  // generously; every extra slot past `placed.length` that is free is a valid
+  // answer, so this always terminates on an open slot in practice.
+  const limit = placed.length * 4 + 4;
+  for (let slot = 0; slot <= limit; slot++) {
+    const { x, y } = nextChipPlacement(slot, safeWidth, safeHeight);
+    const candidate = itemPixelRect({ x, y } as BoardItem, safeWidth, safeHeight);
+    if (!placed.some((r) => rectsOverlap(candidate, r))) {
+      return { x, y };
+    }
+  }
+  return nextChipPlacement(placed.length, safeWidth, safeHeight);
+}

@@ -10,7 +10,7 @@ import { useTopBarActions } from '../lib/topBarSlot';
 import { useBreakpoint } from '../lib/useIsMobile';
 import BoardChip from '../components/BoardChip';
 import BottomSheet from '../components/BottomSheet';
-import { CHIP_WIDTH, CHIP_HEIGHT, outfitPixelRect, rectsOverlap, pointInRect, nextChipPlacement, type PixelRect } from '../lib/boardGeometry';
+import { CHIP_WIDTH, CHIP_HEIGHT, outfitPixelRect, rectsOverlap, pointInRect, nextOpenChipPlacement, type PixelRect } from '../lib/boardGeometry';
 import type { BoardItem, BoardOutfit, ItemCategory } from '@capsule/shared';
 
 const DRAWER_CATEGORIES: { key: ItemCategory; label: string }[] = [
@@ -232,7 +232,10 @@ export default function CapsuleBuilderPage() {
                 if (isDesktop) return;
                 // Deterministic non-overlapping grid walk so items added from
                 // the list layout don't all stack at one coordinate on desktop.
-                const { x, y } = nextChipPlacement(board.items.length);
+                // Derived from the chips actually on the board (not array length)
+                // so a hole left by a removed chip is reused rather than a later
+                // slot being overwritten.
+                const { x, y } = nextOpenChipPlacement(board.items);
                 placeMutation.mutate({ itemId: item.id, x, y }, { onSuccess: () => { invalidate(); setDrawerSheetOpen(false); } });
               }}
               style={{ cursor: isDesktop ? 'grab' : 'pointer' }}

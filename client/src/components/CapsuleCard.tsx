@@ -124,8 +124,10 @@ export default function CapsuleCard({ capsule, onClick, archived = false, onArch
                 type="button"
                 role="menuitem"
                 style={{
-                  display: 'block',
+                  display: 'flex',
+                  alignItems: 'center',
                   width: '100%',
+                  minHeight: '44px',
                   textAlign: 'left',
                   border: 'none',
                   background: 'transparent',

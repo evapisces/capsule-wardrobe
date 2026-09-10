@@ -269,6 +269,19 @@ describe('CapsuleCard — touch target (AC 3)', () => {
     expect(trigger.style.minHeight).toBe('44px');
   });
 
+  it('the popover Archive menuitem — the real tap target — is at least 44px tall with centred contents', async () => {
+    mm = installMatchMedia(375);
+    renderPage();
+    const card = (await screen.findByText('Active One')).closest('[role="button"]') as HTMLElement;
+
+    await userEvent.click(within(card).getByRole('button', { name: 'Capsule actions' }));
+    const menuitem = screen.getByRole('menuitem', { name: 'Archive' });
+
+    expect(menuitem.style.minHeight).toBe('44px');
+    expect(menuitem.style.display).toBe('flex');
+    expect(menuitem.style.alignItems).toBe('center');
+  });
+
   it('thumbnails shrink to 64x76 at mobile and the name column can shrink below its content', async () => {
     store = [
       baseCapsule({

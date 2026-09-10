@@ -7,6 +7,7 @@ import {
   getTripDays, setTripDayOutfit, getTripPacking, setPackingItemPacked, getPackingSuggestions,
 } from '../lib/api';
 import { useTopBarActions } from '../lib/topBarSlot';
+import { useBreakpoint } from '../lib/useIsMobile';
 import BottomSheet from '../components/BottomSheet';
 import Tooltip from '../components/Tooltip';
 import DayStrip from '../components/DayStrip';
@@ -30,6 +31,9 @@ export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const breakpoint = useBreakpoint();
+  const isDesktop = breakpoint === 'desktop';
+  const pagePadding = breakpoint === 'mobile' ? '16px' : breakpoint === 'tablet' ? '20px' : '28px';
   const [sheetOpen, setSheetOpen] = useState(false);
   const [expandedCapsuleIds, setExpandedCapsuleIds] = useState<Set<string>>(new Set());
 
@@ -118,7 +122,7 @@ export default function TripDetailPage() {
     });
   };
 
-  if (isLoading || !trip) return <p style={{ padding: '28px', color: 'var(--ink-tertiary)', fontSize: '13px' }}>Loading…</p>;
+  if (isLoading || !trip) return <p style={{ padding: pagePadding, color: 'var(--ink-tertiary)', fontSize: '13px' }}>Loading…</p>;
 
   const linkedCapsuleIds = new Set((trip.capsules ?? []).map((c) => c.id));
   const unlinkableCapsules = allCapsules.filter((c) => !linkedCapsuleIds.has(c.id));
@@ -131,7 +135,7 @@ export default function TripDetailPage() {
   );
 
   return (
-    <div style={{ padding: '28px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: pagePadding, maxWidth: '1200px', margin: '0 auto' }}>
       <Link to="/trips" style={{ fontSize: '13px', color: 'var(--ink-tertiary)' }}>Trips</Link>
       <div className="eyebrow" style={{ marginTop: '10px' }}>Trip · day {dayOfTrip} of {days.length || '—'}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginTop: '4px' }}>
@@ -211,7 +215,7 @@ export default function TripDetailPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '26px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isDesktop ? '1fr 320px' : '1fr', gap: '26px', marginBottom: '32px' }}>
         <PackingList rows={packing} onToggle={(itemId, packed) => packToggleMutation.mutate({ itemId, packed })} />
         <div>
           <div className="section-label" style={{ marginBottom: '10px' }}>From your last trips</div>

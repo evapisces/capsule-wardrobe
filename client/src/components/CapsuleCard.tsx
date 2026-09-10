@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Capsule } from '@capsule/shared';
+import { useBreakpoint } from '../lib/useIsMobile';
 
 interface Props {
   capsule: Capsule;
@@ -18,9 +19,7 @@ const cardStyle: React.CSSProperties = {
   overflow: 'hidden',
 };
 
-const thumbStyle: React.CSSProperties = {
-  width: '78px',
-  height: '92px',
+const thumbBaseStyle: React.CSSProperties = {
   borderRadius: '6px',
   border: '1px solid var(--line-strong)',
   background: 'repeating-linear-gradient(135deg, #EDE9E1 0 7px, #F6F3ED 7px 14px)',
@@ -37,6 +36,11 @@ const menuBtnStyle: React.CSSProperties = {
   padding: '2px 8px',
   borderRadius: '6px',
   color: 'var(--ink-tertiary)',
+  minWidth: '44px',
+  minHeight: '44px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 };
 
 export default function CapsuleCard({ capsule, onClick, archived = false, onArchiveToggle }: Props) {
@@ -44,6 +48,13 @@ export default function CapsuleCard({ capsule, onClick, archived = false, onArch
   const extra = (capsule.itemCount ?? 0) - thumbnails.length;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef<HTMLDivElement>(null);
+  const isMobile = useBreakpoint() === 'mobile';
+
+  const thumbStyle: React.CSSProperties = {
+    ...thumbBaseStyle,
+    width: isMobile ? '64px' : '78px',
+    height: isMobile ? '76px' : '92px',
+  };
 
   const stop = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -113,8 +124,10 @@ export default function CapsuleCard({ capsule, onClick, archived = false, onArch
                 type="button"
                 role="menuitem"
                 style={{
-                  display: 'block',
+                  display: 'flex',
+                  alignItems: 'center',
                   width: '100%',
+                  minHeight: '44px',
                   textAlign: 'left',
                   border: 'none',
                   background: 'transparent',
@@ -138,8 +151,11 @@ export default function CapsuleCard({ capsule, onClick, archived = false, onArch
 
       <div style={{ padding: '18px 20px 0' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', lineHeight: 1.1, color: 'var(--ink-primary)' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{
+              fontFamily: 'var(--font-serif)', fontSize: '26px', lineHeight: 1.1, color: 'var(--ink-primary)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
               {capsule.name}
             </div>
             <div style={{ fontSize: '12.5px', color: 'var(--ink-tertiary)', marginTop: '3px' }}>

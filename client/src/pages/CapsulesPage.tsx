@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { getCapsules, createCapsule, archiveCapsule, unarchiveCapsule } from '../lib/api';
 import { useTopBarActions } from '../lib/topBarSlot';
+import { useBreakpoint } from '../lib/useIsMobile';
 import CapsuleCard from '../components/CapsuleCard';
 import type { Capsule, Climate } from '@capsule/shared';
 
@@ -18,7 +19,7 @@ const CHIPS: { key: ChipFilter; label: string }[] = [
 
 const gridStyle: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
   gap: '18px',
 };
 
@@ -34,6 +35,7 @@ const modalInputStyle: React.CSSProperties = {
 export default function CapsulesPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const isMobile = useBreakpoint() === 'mobile';
   const [chip, setChip] = useState<ChipFilter>('all');
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
@@ -142,10 +144,15 @@ export default function CapsulesPage() {
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(23,21,15,0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
+          padding: '16px',
         }}>
           <form
             onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }}
-            style={{ background: 'var(--bg-page)', borderRadius: '14px', padding: '26px', width: '360px', border: '1px solid var(--line-strong)' }}
+            style={{
+              background: 'var(--bg-page)', borderRadius: '14px', padding: '26px',
+              width: 'min(360px, calc(100vw - 32px))', maxHeight: '90dvh', overflowY: 'auto',
+              border: '1px solid var(--line-strong)',
+            }}
           >
             <h2 style={{ marginBottom: '18px', fontFamily: 'var(--font-serif)', fontSize: '24px', fontWeight: 400 }}>New capsule</h2>
             <div style={{ marginBottom: '14px' }}>
@@ -181,9 +188,25 @@ export default function CapsulesPage() {
                 ))}
               </select>
             </div>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
-              <button type="submit" className="btn-primary" disabled={!name || createMutation.isPending}>
+            <div style={{
+              display: 'flex', gap: '10px',
+              flexDirection: isMobile ? 'column' : 'row',
+              justifyContent: 'flex-end',
+            }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ minHeight: '44px', width: isMobile ? '100%' : undefined }}
+                onClick={() => setShowCreate(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-primary"
+                style={{ minHeight: '44px', width: isMobile ? '100%' : undefined }}
+                disabled={!name || createMutation.isPending}
+              >
                 {createMutation.isPending ? 'Creating…' : 'Create'}
               </button>
             </div>

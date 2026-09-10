@@ -4,7 +4,9 @@ import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import type { Capsule } from '@capsule/shared';
 import CapsulesPage from '../pages/CapsulesPage';
+import { useTopBarSlotContent } from '../lib/topBarSlot';
 import * as api from '../lib/api';
+import { installMatchMedia } from './helpers/matchMedia';
 
 vi.mock('../lib/api');
 
@@ -174,5 +176,131 @@ describe('CapsuleCard overflow menu — dismissal', () => {
 
     expect(api.archiveCapsule).not.toHaveBeenCalled();
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+});
+
+function TopBarProbe() {
+  return <>{useTopBarSlotContent()}</>;
+}
+
+function renderPageWithTopBar() {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>
+        <CapsulesPage />
+        <TopBarProbe />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+}
+
+describe('CapsulesPage — responsive layout (AC 1, 2)', () => {
+  let mm: ReturnType<typeof installMatchMedia>;
+
+  afterEach(() => {
+    mm?.restore();
+  });
+
+  it('the card grid minimum track never exceeds the viewport', async () => {
+    mm = installMatchMedia(320);
+    renderPage();
+    const card = (await screen.findByText('Active One')).closest('[role="button"]') as HTMLElement;
+    const grid = card.parentElement as HTMLElement;
+
+    expect(grid.style.gridTemplateColumns).toBe(
+      'repeat(auto-fit, minmax(min(280px, 100%), 1fr))'
+    );
+    // No fixed 360px track anywhere on the grid.
+    expect(grid.style.gridTemplateColumns).not.toContain('360px');
+  });
+
+  it('the "New capsule" modal is viewport-bounded and its actions are touch-sized and stacked at mobile', async () => {
+    mm = installMatchMedia(375);
+    renderPageWithTopBar();
+    await screen.findByText('Active One');
+
+    await userEvent.click(screen.getByRole('button', { name: 'New capsule' }));
+
+    const form = document.querySelector('form') as HTMLFormElement;
+    // jsdom's CSSOM reserialises min() with stray tokens, so match on the parts.
+    expect(form.style.width).toMatch(/^min\(/);
+    expect(form.style.width).toContain('360px');
+    expect(form.style.width).toContain('calc(100vw - 32px)');
+    expect(form.style.width).not.toBe('360px');
+    expect(form.style.maxHeight).toBe('90dvh');
+    expect(form.style.overflowY).toBe('auto');
+
+    const actionRow = screen.getByRole('button', { name: 'Cancel' }).parentElement as HTMLElement;
+    expect(actionRow.style.flexDirection).toBe('column');
+
+    for (const label of ['Cancel', 'Create']) {
+      const btn = screen.getByRole('button', { name: label });
+      expect(btn.style.minHeight).toBe('44px');
+      expect(btn.style.width).toBe('100%');
+    }
+  });
+
+  it('the modal action row is a row (not stacked) at desktop', async () => {
+    mm = installMatchMedia(1280);
+    renderPageWithTopBar();
+    await screen.findByText('Active One');
+
+    await userEvent.click(screen.getByRole('button', { name: 'New capsule' }));
+    const actionRow = screen.getByRole('button', { name: 'Cancel' }).parentElement as HTMLElement;
+    expect(actionRow.style.flexDirection).toBe('row');
+  });
+});
+
+describe('CapsuleCard — touch target (AC 3)', () => {
+  let mm: ReturnType<typeof installMatchMedia>;
+
+  afterEach(() => {
+    mm?.restore();
+  });
+
+  it('the archive/unarchive control is at least 44x44', async () => {
+    mm = installMatchMedia(375);
+    renderPage();
+    const card = (await screen.findByText('Active One')).closest('[role="button"]') as HTMLElement;
+    const trigger = within(card).getByRole('button', { name: 'Capsule actions' });
+
+    expect(trigger.style.minWidth).toBe('44px');
+    expect(trigger.style.minHeight).toBe('44px');
+  });
+
+  it('the popover Archive menuitem — the real tap target — is at least 44px tall with centred contents', async () => {
+    mm = installMatchMedia(375);
+    renderPage();
+    const card = (await screen.findByText('Active One')).closest('[role="button"]') as HTMLElement;
+
+    await userEvent.click(within(card).getByRole('button', { name: 'Capsule actions' }));
+    const menuitem = screen.getByRole('menuitem', { name: 'Archive' });
+
+    expect(menuitem.style.minHeight).toBe('44px');
+    expect(menuitem.style.display).toBe('flex');
+    expect(menuitem.style.alignItems).toBe('center');
+  });
+
+  it('thumbnails shrink to 64x76 at mobile and the name column can shrink below its content', async () => {
+    store = [
+      baseCapsule({
+        id: 'active_1',
+        name: 'A Very Long Capsule Name That Would Otherwise Push The Card Wide',
+        itemCount: 1,
+        thumbnails: [{ id: 't1', name: 'Tee', photoUrl: null }],
+      }),
+    ];
+    mm = installMatchMedia(375);
+    renderPage();
+    const nameEl = await screen.findByText(/A Very Long Capsule Name/);
+    const card = nameEl.closest('[role="button"]') as HTMLElement;
+
+    const nameColumn = nameEl.parentElement as HTMLElement;
+    expect(nameColumn.style.minWidth).toBe('0');
+
+    const thumb = Array.from(card.querySelectorAll('div')).find((d) => d.style.width === '64px');
+    expect(thumb).toBeTruthy();
+    expect(thumb!.style.height).toBe('76px');
   });
 });

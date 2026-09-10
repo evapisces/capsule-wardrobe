@@ -208,12 +208,21 @@ export default function ItemDetailPage() {
             </select>
           </div>
 
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '14px' }}>
             <label style={labelStyle}>Price paid</label>
             <input type="number" min="0" step="0.01" style={inputStyle}
               value={form.pricePaid}
               onChange={(e) => setForm((f) => ({ ...f, pricePaid: e.target.value }))} />
             <span style={{ fontSize: '11.5px', color: 'var(--ink-tertiary)' }}>Used for cost per wear</span>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={labelStyle}>Notes</label>
+            <textarea
+              style={{ ...inputStyle, height: '80px', padding: '10px 13px', resize: 'vertical' }}
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+            />
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>

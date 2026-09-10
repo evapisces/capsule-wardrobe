@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { getClosets, getClosetItems, getClosetStats, getAllCapsules } from '../lib/api';
 import { useTopBarActions } from '../lib/topBarSlot';
 import { searchInputStyle } from '../components/NavBar';
+import { useBreakpoint } from '../lib/useIsMobile';
 import ClosetGrid from '../components/ClosetGrid';
 import StatStrip, { type Stat } from '../components/StatStrip';
 import ItemUploadForm from '../components/ItemUploadForm';
@@ -30,6 +31,10 @@ function formatDelta(n: number): string {
 
 export default function ClosetPage() {
   const navigate = useNavigate();
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
+  const pagePadding = bp === 'mobile' ? '16px' : bp === 'tablet' ? '20px' : '28px';
+  const titleSize = bp === 'mobile' ? '30px' : bp === 'tablet' ? '36px' : '42px';
   const [chip, setChip] = useState<ChipFilter>('all');
   const [search, setSearch] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -93,20 +98,42 @@ export default function ClosetPage() {
     : [];
 
   return (
-    <div style={{ padding: '28px', maxWidth: '1280px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '22px', flexWrap: 'wrap', gap: '16px' }}>
+    <div style={{ padding: pagePadding, maxWidth: '1280px', margin: '0 auto' }}>
+      <div
+        style={
+          isMobile
+            ? { display: 'flex', flexDirection: 'column', alignItems: 'stretch', marginBottom: '18px', gap: '14px' }
+            : { display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '22px', flexWrap: 'wrap', gap: '16px' }
+        }
+      >
         <div>
           <div className="eyebrow">{items.length} items · {capsules.length} capsules</div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '42px', fontWeight: 400, color: 'var(--ink-primary)', lineHeight: 1 }}>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: titleSize, fontWeight: 400, color: 'var(--ink-primary)', lineHeight: 1 }}>
             {closets[0]?.name ?? 'Your closet'}
           </h1>
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div
+          data-testid="closet-filter-chips"
+          style={
+            isMobile
+              ? {
+                  display: 'flex',
+                  gap: '8px',
+                  flexWrap: 'nowrap',
+                  overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                  width: '100%',
+                  paddingBottom: '4px',
+                }
+              : { display: 'flex', gap: '8px', flexWrap: 'wrap' }
+          }
+        >
           {CHIPS.map((c) => (
             <button
               key={c.key}
               className={`chip${chip === c.key ? ' selected' : ''}`}
               onClick={() => setChip(c.key)}
+              style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}
             >
               {c.label}
             </button>
@@ -125,9 +152,31 @@ export default function ClosetPage() {
       {showAddForm && closetId && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(23,21,15,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
+          display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'center', zIndex: 200,
         }}>
-          <div style={{ background: 'var(--bg-page)', borderRadius: '14px', border: '1px solid var(--line-strong)', overflowY: 'auto', maxHeight: '90vh' }}>
+          <div
+            data-testid="add-item-modal"
+            style={
+              isMobile
+                ? {
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'var(--bg-page)',
+                    overflowY: 'auto',
+                    WebkitOverflowScrolling: 'touch',
+                  }
+                : {
+                    background: 'var(--bg-page)',
+                    borderRadius: '14px',
+                    border: '1px solid var(--line-strong)',
+                    overflowY: 'auto',
+                    maxHeight: '90vh',
+                    width: '100%',
+                    maxWidth: '880px',
+                    margin: '20px',
+                  }
+            }
+          >
             <ItemUploadForm
               closetId={closetId}
               onSuccess={() => setShowAddForm(false)}

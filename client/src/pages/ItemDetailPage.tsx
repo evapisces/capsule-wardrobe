@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -6,7 +6,34 @@ import {
   getItemCapsules, getItemWearHistory, logItemWear, undoItemWear,
 } from '../lib/api';
 import StatStrip, { type Stat } from '../components/StatStrip';
+import { useBreakpoint } from '../lib/useIsMobile';
 import type { ItemCategory, Climate } from '@capsule/shared';
+
+/**
+ * True while the viewport is narrower than `maxPx`. Used for the sub-mobile
+ * (`< 400px`) rule where the Wore-it / Edit pair must stack full-width — a
+ * threshold finer than the shared breakpoint contract exposes.
+ */
+function useMaxWidth(maxPx: number): boolean {
+  const query = `(max-width: ${maxPx - 1}px)`;
+  return useSyncExternalStore(
+    (onChange) => {
+      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+      const mql = window.matchMedia(query);
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
+    },
+    () => (typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(query).matches
+      : false),
+    () => false,
+  );
+}
+
+function wearSourceLabel(h: { corrected: boolean; source: string }): string {
+  if (h.corrected) return 'Corrected';
+  return h.source === 'trip_auto' ? 'Trip auto-log' : 'Tapped wore it';
+}
 
 const inputStyle: React.CSSProperties = {
   height: '40px',
@@ -50,7 +77,15 @@ export default function ItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
+  const stackActions = useMaxWidth(400);
   const [editing, setEditing] = useState(false);
+
+  const touchTargetStyle: React.CSSProperties | undefined = isMobile ? { minHeight: '44px' } : undefined;
+  const heroHeight = isMobile ? 'min(60vh, 380px)' : '470px';
+  // >= 16px keeps iOS Safari from auto-zooming when an input takes focus.
+  const editInputStyle: React.CSSProperties = isMobile ? { ...inputStyle, fontSize: '16px' } : inputStyle;
 
   const { data: item, isLoading } = useQuery({
     queryKey: ['item', id],
@@ -181,7 +216,7 @@ export default function ItemDetailPage() {
           ].map(({ label, key, type }) => (
             <div key={key} style={{ marginBottom: '14px' }}>
               <label style={labelStyle}>{label}</label>
-              <input type={type} style={inputStyle}
+              <input type={type} style={editInputStyle}
                 value={form[key as keyof typeof form]}
                 onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} />
             </div>
@@ -189,7 +224,7 @@ export default function ItemDetailPage() {
 
           <div style={{ marginBottom: '14px' }}>
             <label style={labelStyle}>Category</label>
-            <select style={inputStyle} value={form.category}
+            <select style={editInputStyle} value={form.category}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as ItemCategory }))}>
               {['tops','bottoms','dresses','shoes','accessories','outerwear'].map((c) => (
                 <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
@@ -199,7 +234,7 @@ export default function ItemDetailPage() {
 
           <div style={{ marginBottom: '14px' }}>
             <label style={labelStyle}>Climate band</label>
-            <select style={inputStyle} value={form.climate}
+            <select style={editInputStyle} value={form.climate}
               onChange={(e) => setForm((f) => ({ ...f, climate: e.target.value as Climate | '' }))}>
               <option value="">—</option>
               {['tropical','temperate','cold','layering'].map((c) => (
@@ -210,7 +245,7 @@ export default function ItemDetailPage() {
 
           <div style={{ marginBottom: '14px' }}>
             <label style={labelStyle}>Price paid</label>
-            <input type="number" min="0" step="0.01" style={inputStyle}
+            <input type="number" min="0" step="0.01" style={editInputStyle}
               value={form.pricePaid}
               onChange={(e) => setForm((f) => ({ ...f, pricePaid: e.target.value }))} />
             <span style={{ fontSize: '11.5px', color: 'var(--ink-tertiary)' }}>Used for cost per wear</span>
@@ -219,28 +254,33 @@ export default function ItemDetailPage() {
           <div style={{ marginBottom: '20px' }}>
             <label style={labelStyle}>Notes</label>
             <textarea
-              style={{ ...inputStyle, height: '80px', padding: '10px 13px', resize: 'vertical' }}
+              style={{ ...editInputStyle, height: '80px', padding: '10px 13px', resize: 'vertical' }}
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             />
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="submit" className="btn-primary" disabled={updateMutation.isPending}>
+            <button type="submit" className="btn-primary" style={touchTargetStyle} disabled={updateMutation.isPending}>
               {uploading ? 'Uploading…' : updateMutation.isPending ? 'Saving…' : 'Save'}
             </button>
-            <button type="button" className="btn-secondary" onClick={() => setEditing(false)}>Cancel</button>
+            <button type="button" className="btn-secondary" style={touchTargetStyle} onClick={() => setEditing(false)}>Cancel</button>
           </div>
         </form>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: '36px', marginTop: '16px' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: bp === 'desktop' ? '400px 1fr' : '1fr',
+          gap: isMobile ? '20px' : '36px',
+          marginTop: '16px',
+        }}>
           <div>
             {item.photoUrl ? (
               <img src={item.photoUrl} alt={item.name}
-                style={{ width: '100%', height: '470px', objectFit: 'cover', borderRadius: '12px' }} />
+                style={{ width: '100%', height: heroHeight, objectFit: 'cover', borderRadius: '12px' }} />
             ) : (
               <div style={{
-                width: '100%', height: '470px', borderRadius: '12px',
+                width: '100%', height: heroHeight, borderRadius: '12px',
                 background: 'repeating-linear-gradient(135deg, #EDE9E1 0 7px, #F6F3ED 7px 14px)',
                 border: '1px solid var(--line-strong)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '48px',
@@ -258,11 +298,22 @@ export default function ItemDetailPage() {
               {[item.brand, item.category, item.size, item.color, item.notes].filter(Boolean).join(' · ')}
             </p>
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '18px' }}>
-              <button className="btn-positive" onClick={() => wearMutation.mutate()} disabled={wearMutation.isPending}>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '18px', flexDirection: stackActions ? 'column' : 'row' }}>
+              <button
+                className="btn-positive"
+                style={{ ...touchTargetStyle, ...(stackActions ? { width: '100%' } : null) }}
+                onClick={() => wearMutation.mutate()}
+                disabled={wearMutation.isPending}
+              >
                 {wornToday ? 'Undo — worn today' : 'Wore it today'}
               </button>
-              <button className="btn-secondary" onClick={startEdit}>Edit</button>
+              <button
+                className="btn-secondary"
+                style={{ ...touchTargetStyle, ...(stackActions ? { width: '100%' } : null) }}
+                onClick={startEdit}
+              >
+                Edit
+              </button>
             </div>
 
             <div style={{ marginTop: '24px', marginBottom: '26px' }}>
@@ -299,29 +350,48 @@ export default function ItemDetailPage() {
               <p style={{ fontSize: '12.5px', color: 'var(--ink-tertiary)' }}>No wears logged yet.</p>
             ) : (
               <div style={{ border: '1px solid var(--line-soft)', borderRadius: '10px', overflow: 'hidden' }}>
-                {history.map((h, i) => (
-                  <div key={h.id} style={{
-                    display: 'grid', gridTemplateColumns: '110px 1fr 150px 120px', gap: '12px',
-                    padding: '11px 14px', fontSize: '12.5px',
-                    borderTop: i === 0 ? 'none' : '1px solid var(--line-hairline)',
-                  }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--ink-tertiary)' }}>
-                      {new Date(h.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
-                    </span>
-                    <span style={{ fontWeight: 500, color: 'var(--ink-primary)' }}>{h.outfitName ?? item.name}</span>
-                    <span style={{ color: 'var(--ink-tertiary)' }}>{h.context ?? '—'}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--ink-tertiary)' }}>
-                      {h.corrected ? 'Corrected' : h.source === 'trip_auto' ? 'Trip auto-log' : 'Tapped wore it'}
-                    </span>
-                  </div>
-                ))}
+                {history.map((h, i) => {
+                  const dateLabel = new Date(h.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+                  const borderTop = i === 0 ? 'none' : '1px solid var(--line-hairline)';
+                  if (isMobile) {
+                    return (
+                      <div key={h.id} data-testid="wear-history-row" style={{ padding: '11px 14px', fontSize: '12.5px', borderTop }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--ink-tertiary)' }}>{dateLabel}</span>
+                          <span style={{ fontWeight: 500, color: 'var(--ink-primary)' }}>{h.outfitName ?? item.name}</span>
+                        </div>
+                        <div style={{ marginTop: '3px', color: 'var(--ink-tertiary)' }}>
+                          {(h.context ?? '—')} · {wearSourceLabel(h)}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={h.id} data-testid="wear-history-row" style={{
+                      display: 'grid', gridTemplateColumns: '110px 1fr 150px 120px', gap: '12px',
+                      padding: '11px 14px', fontSize: '12.5px', borderTop,
+                    }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--ink-tertiary)' }}>{dateLabel}</span>
+                      <span style={{ fontWeight: 500, color: 'var(--ink-primary)' }}>{h.outfitName ?? item.name}</span>
+                      <span style={{ color: 'var(--ink-tertiary)' }}>{h.context ?? '—'}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--ink-tertiary)' }}>
+                        {wearSourceLabel(h)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             <button
               onClick={() => deleteMutation.mutate()}
               disabled={deleteMutation.isPending}
-              style={{ marginTop: '26px', background: 'none', border: 'none', color: 'var(--accent-amber)', fontSize: '13px', padding: 0 }}
+              style={{
+                marginTop: '26px', background: 'none', border: 'none', color: 'var(--accent-amber)',
+                fontSize: '13px', padding: isMobile ? '11px 0' : 0,
+                minHeight: isMobile ? '44px' : undefined,
+                display: 'block', textAlign: 'left', cursor: 'pointer',
+              }}
             >
               {deleteMutation.isPending ? 'Deleting…' : 'Delete item'}
             </button>

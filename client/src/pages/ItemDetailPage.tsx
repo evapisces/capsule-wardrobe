@@ -86,7 +86,7 @@ export default function ItemDetailPage() {
 
   const [form, setForm] = useState({
     name: '', category: 'tops' as ItemCategory, color: '',
-    climate: '' as Climate | '', size: '', brand: '', notes: '',
+    climate: '' as Climate | '', size: '', brand: '', notes: '', pricePaid: '',
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -102,6 +102,7 @@ export default function ItemDetailPage() {
       size: item.size ?? '',
       brand: item.brand ?? '',
       notes: item.notes ?? '',
+      pricePaid: item.pricePaid != null ? String(item.pricePaid) : '',
     });
     setPhotoFile(null);
     setPhotoPreview(item.photoUrl ?? null);
@@ -131,6 +132,7 @@ export default function ItemDetailPage() {
         size: form.size || undefined,
         brand: form.brand || undefined,
         notes: form.notes || undefined,
+        pricePaid: form.pricePaid ? Number(form.pricePaid) : undefined,
         ...(photoUrl ? { photoUrl } : {}),
       });
     },
@@ -195,7 +197,7 @@ export default function ItemDetailPage() {
             </select>
           </div>
 
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '14px' }}>
             <label style={labelStyle}>Climate band</label>
             <select style={inputStyle} value={form.climate}
               onChange={(e) => setForm((f) => ({ ...f, climate: e.target.value as Climate | '' }))}>
@@ -204,6 +206,14 @@ export default function ItemDetailPage() {
                 <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
               ))}
             </select>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={labelStyle}>Price paid</label>
+            <input type="number" min="0" step="0.01" style={inputStyle}
+              value={form.pricePaid}
+              onChange={(e) => setForm((f) => ({ ...f, pricePaid: e.target.value }))} />
+            <span style={{ fontSize: '11.5px', color: 'var(--ink-tertiary)' }}>Used for cost per wear</span>
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>

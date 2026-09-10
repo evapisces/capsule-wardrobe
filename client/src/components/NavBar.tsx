@@ -89,6 +89,8 @@ function DesktopNav({ slotContent }: { slotContent: React.ReactNode }) {
   );
 }
 
+const MOBILE_NAV_LIST_ID = 'mobile-nav-list';
+
 function MobileNav({ slotContent }: { slotContent: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -108,6 +110,7 @@ function MobileNav({ slotContent }: { slotContent: React.ReactNode }) {
           type="button"
           aria-label="Menu"
           aria-expanded={menuOpen}
+          aria-controls={MOBILE_NAV_LIST_ID}
           onClick={() => setMenuOpen((o) => !o)}
           style={hamburgerStyle}
         >
@@ -116,7 +119,10 @@ function MobileNav({ slotContent }: { slotContent: React.ReactNode }) {
       </div>
 
       {menuOpen && (
-        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', paddingBottom: '8px' }}>
+        <div
+          id={MOBILE_NAV_LIST_ID}
+          style={{ display: 'flex', flexDirection: 'column', width: '100%', paddingBottom: '8px' }}
+        >
           {DESTINATIONS.map((d) => (
             <NavLink
               key={d.to}

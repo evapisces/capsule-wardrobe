@@ -64,6 +64,20 @@ describe('NavBar', () => {
         minHeight: '44px',
       });
     });
+
+    it('points aria-controls at the id of the disclosed nav list', async () => {
+      renderNav();
+      const trigger = screen.getByRole('button', { name: 'Menu' });
+      const controlsId = trigger.getAttribute('aria-controls');
+      expect(controlsId).toBeTruthy();
+
+      await userEvent.click(trigger);
+      const list = document.getElementById(controlsId as string);
+      expect(list).toBeInTheDocument();
+      DESTINATIONS.forEach((label) => {
+        expect(list).toContainElement(screen.getByRole('link', { name: label }));
+      });
+    });
   });
 
   describe('tablet and desktop (>= 768px)', () => {

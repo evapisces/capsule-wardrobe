@@ -4,8 +4,10 @@ dist/
 .env.local
 *.env
 
-# Compiled JS output from tsc — the real sources are .ts/.tsx.
-# These shadow the TS sources under Vite/Vitest resolution and must not be tracked.
+# Compiled JS output from tsc — the real sources are .ts/.tsx. These shadow the
+# TS sources under Vite/Vitest resolution and must not be tracked. The client now
+# type-checks with `tsc --noEmit`, so these should never be produced; kept as a
+# belt-and-suspenders guard in case a stray `tsc` invocation emits alongside sources.
 client/src/**/*.js
 client/src/**/*.js.map
 shared/types.js

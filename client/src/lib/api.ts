@@ -95,6 +95,13 @@ export const uploadPhoto = async (file: File): Promise<UploadResponse> => {
 // Capsules
 export const getCapsules = (archived?: boolean) =>
   request<Capsule[]>(`/capsules${archived ? '?archived=true' : ''}`);
+// Active + archived combined. For pickers / membership lists (trip-linking,
+// item→capsule selector, closet) that must still see archived capsules even
+// though the main Capsules list is now active-only.
+export const getAllCapsules = async (): Promise<Capsule[]> => {
+  const [activeList, archivedList] = await Promise.all([getCapsules(false), getCapsules(true)]);
+  return [...activeList, ...archivedList];
+};
 export const createCapsule = (data: { name: string; description?: string; climate?: Climate }) =>
   request<Capsule>('/capsules', { method: 'POST', body: JSON.stringify(data) });
 export const getCapsule = (id: string) => request<Capsule>(`/capsules/${id}`);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createClosetItem, uploadPhoto, getCapsules, addItemToCapsule } from '../lib/api';
+import { createClosetItem, uploadPhoto, getAllCapsules, addItemToCapsule } from '../lib/api';
 import type { ItemCategory, Climate } from '@capsule/shared';
 
 interface Props {
@@ -33,7 +33,8 @@ export default function ItemUploadForm({ closetId, onSuccess, onCancel }: Props)
   const [uploading, setUploading] = useState(false);
   const [selectedCapsuleId, setSelectedCapsuleId] = useState<string | null>(null);
 
-  const { data: capsules = [] } = useQuery({ queryKey: ['capsules'], queryFn: () => getCapsules() });
+  // Active + archived, so an item can still be added to an archived capsule.
+  const { data: capsules = [] } = useQuery({ queryKey: ['capsules', 'all'], queryFn: getAllCapsules });
 
   const mutation = useMutation({
     mutationFn: async () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Capsule } from '@capsule/shared';
 
 interface Props {
@@ -43,10 +43,27 @@ export default function CapsuleCard({ capsule, onClick, archived = false, onArch
   const thumbnails = capsule.thumbnails ?? [];
   const extra = (capsule.itemCount ?? 0) - thumbnails.length;
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuWrapRef = useRef<HTMLDivElement>(null);
 
   const stop = (e: React.MouseEvent) => {
     e.stopPropagation();
   };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (!menuWrapRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [menuOpen]);
 
   return (
     <div
@@ -62,7 +79,7 @@ export default function CapsuleCard({ capsule, onClick, archived = false, onArch
       }}
     >
       {onArchiveToggle && (
-        <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1 }} onClick={stop}>
+        <div ref={menuWrapRef} style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1 }} onClick={stop}>
           <button
             type="button"
             aria-label="Capsule actions"

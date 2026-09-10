@@ -7,9 +7,10 @@ config({ path: path.resolve(process.cwd(), '.env') });
 
 export default async function globalSetup() {
   process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
-  execSync('npx prisma migrate deploy', {
-    cwd: process.cwd(),
-    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL_TEST },
-    stdio: 'inherit',
-  });
+  const env = { ...process.env, DATABASE_URL: process.env.DATABASE_URL_TEST };
+  // Regenerate the Prisma client first so a clean checkout (missing or stale
+  // generated client) compiles and runs the suite without a manual
+  // `npx prisma generate`.
+  execSync('npx prisma generate', { cwd: process.cwd(), env, stdio: 'inherit' });
+  execSync('npx prisma migrate deploy', { cwd: process.cwd(), env, stdio: 'inherit' });
 }

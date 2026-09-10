@@ -34,10 +34,16 @@ const baseCapsule = (over: Partial<Capsule>): Capsule => ({
   ...over,
 });
 
-const active = [baseCapsule({ id: 'active_1', name: 'Active One' })];
-const archived = [
-  baseCapsule({ id: 'archived_1', name: 'Archived One', archivedAt: new Date().toISOString() }),
-];
+// Stateful fake so archive/unarchive actually move a capsule between the two
+// lists — lets tests assert the user-visible outcome, not just the mutation call.
+let store: Capsule[];
+
+function seedStore() {
+  store = [
+    baseCapsule({ id: 'active_1', name: 'Active One' }),
+    baseCapsule({ id: 'archived_1', name: 'Archived One', archivedAt: new Date().toISOString() }),
+  ];
+}
 
 function renderPage() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -52,11 +58,18 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  seedStore();
   vi.mocked(api.getCapsules).mockImplementation((archivedArg?: boolean) =>
-    Promise.resolve(archivedArg ? archived : active)
+    Promise.resolve(store.filter((c) => (archivedArg ? c.archivedAt : !c.archivedAt)))
   );
-  vi.mocked(api.archiveCapsule).mockResolvedValue(active[0]);
-  vi.mocked(api.unarchiveCapsule).mockResolvedValue(archived[0]);
+  vi.mocked(api.archiveCapsule).mockImplementation((id: string) => {
+    store = store.map((c) => (c.id === id ? { ...c, archivedAt: new Date().toISOString() } : c));
+    return Promise.resolve(store.find((c) => c.id === id)!);
+  });
+  vi.mocked(api.unarchiveCapsule).mockImplementation((id: string) => {
+    store = store.map((c) => (c.id === id ? { ...c, archivedAt: null } : c));
+    return Promise.resolve(store.find((c) => c.id === id)!);
+  });
 });
 
 describe('CapsulesPage — Archived chip', () => {
@@ -73,9 +86,7 @@ describe('CapsulesPage — Archived chip', () => {
   });
 
   it('shows an archive-specific empty state when there are no archived capsules', async () => {
-    vi.mocked(api.getCapsules).mockImplementation((archivedArg?: boolean) =>
-      Promise.resolve(archivedArg ? [] : active)
-    );
+    store = [baseCapsule({ id: 'active_1', name: 'Active One' })];
     renderPage();
     await screen.findByText('Active One');
 
@@ -107,7 +118,22 @@ describe('CapsulesPage — archive action', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it('reads "Unarchive" in the Archived view and calls unarchiveCapsule', async () => {
+  it('removes the card from the active grid and surfaces it under Archived after invalidation', async () => {
+    renderPage();
+    const card = (await screen.findByText('Active One')).closest('[role="button"]') as HTMLElement;
+
+    await userEvent.click(within(card).getByRole('button', { name: 'Capsule actions' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Archive' }));
+
+    // Card leaves the active grid without a manual reload.
+    await waitFor(() => expect(screen.queryByText('Active One')).not.toBeInTheDocument());
+
+    // …and shows up in the Archived view.
+    await userEvent.click(screen.getByRole('button', { name: 'Archived' }));
+    expect(await screen.findByText('Active One')).toBeInTheDocument();
+  });
+
+  it('reads "Unarchive" in the Archived view and brings the capsule back under All', async () => {
     renderPage();
     await screen.findByText('Active One');
     await userEvent.click(screen.getByRole('button', { name: 'Archived' }));
@@ -117,6 +143,36 @@ describe('CapsulesPage — archive action', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Unarchive' }));
 
     await waitFor(() => expect(api.unarchiveCapsule).toHaveBeenCalledWith('archived_1'));
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    // Leaves the Archived grid…
+    await waitFor(() => expect(screen.queryByText('Archived One')).not.toBeInTheDocument());
+    // …and reappears under All.
+    await userEvent.click(screen.getByRole('button', { name: 'All' }));
+    expect(await screen.findByText('Archived One')).toBeInTheDocument();
+  });
+});
+
+describe('CapsuleCard overflow menu — dismissal', () => {
+  it('closes on outside click and on Escape without archiving', async () => {
+    renderPage();
+    const card = (await screen.findByText('Active One')).closest('[role="button"]') as HTMLElement;
+    const trigger = within(card).getByRole('button', { name: 'Capsule actions' });
+
+    await userEvent.click(trigger);
+    expect(screen.getByRole('menuitem', { name: 'Archive' })).toBeInTheDocument();
+
+    // Outside click dismisses.
+    await userEvent.click(document.body);
+    await waitFor(() => expect(screen.queryByRole('menuitem', { name: 'Archive' })).not.toBeInTheDocument());
+
+    // Escape dismisses.
+    await userEvent.click(trigger);
+    expect(screen.getByRole('menuitem', { name: 'Archive' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menuitem', { name: 'Archive' })).not.toBeInTheDocument());
+
+    expect(api.archiveCapsule).not.toHaveBeenCalled();
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

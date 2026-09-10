@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { getClosets, getClosetItems, getClosetStats, getCapsules } from '../lib/api';
+import { getClosets, getClosetItems, getClosetStats, getAllCapsules } from '../lib/api';
 import { useTopBarActions } from '../lib/topBarSlot';
 import { searchInputStyle } from '../components/NavBar';
 import ClosetGrid from '../components/ClosetGrid';
@@ -49,7 +49,8 @@ export default function ClosetPage() {
     enabled: !!closetId,
   });
 
-  const { data: capsules = [] } = useQuery({ queryKey: ['capsules'], queryFn: () => getCapsules() });
+  // Active + archived: the closet summary count should not drop archived capsules.
+  const { data: capsules = [] } = useQuery({ queryKey: ['capsules', 'all'], queryFn: getAllCapsules });
 
   useTopBarActions(
     <>

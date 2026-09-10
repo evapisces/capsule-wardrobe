@@ -3,3 +3,9 @@ dist/
 .env
 .env.local
 *.env
+
+# Compiled JS output from tsc — the real sources are .ts/.tsx.
+# These shadow the TS sources under Vite/Vitest resolution and must not be tracked.
+client/src/**/*.js
+client/src/**/*.js.map
+shared/types.js

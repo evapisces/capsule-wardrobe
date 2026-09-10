@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useBreakpoint } from '../lib/useIsMobile';
 
 interface Props {
   isOpen: boolean;
@@ -8,6 +9,11 @@ interface Props {
 }
 
 export default function BottomSheet({ isOpen, onClose, title, children }: Props) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const breakpoint = useBreakpoint();
+  const isMobile = breakpoint === 'mobile';
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -17,6 +23,24 @@ export default function BottomSheet({ isOpen, onClose, title, children }: Props)
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Remember whatever opened the sheet so focus can return there on close.
+    triggerRef.current = document.activeElement as HTMLElement | null;
+    sheetRef.current?.focus();
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      triggerRef.current?.focus?.();
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const backdropStyle: React.CSSProperties = {
@@ -24,10 +48,13 @@ export default function BottomSheet({ isOpen, onClose, title, children }: Props)
   };
 
   const sheetStyle: React.CSSProperties = {
-    position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-    width: '100%', maxWidth: '640px',
+    position: 'fixed', bottom: 0,
+    left: isMobile ? 0 : '50%',
+    transform: isMobile ? 'none' : 'translateX(-50%)',
+    width: '100%',
+    maxWidth: isMobile ? '100%' : '640px',
     background: '#fff', borderRadius: '16px 16px 0 0',
-    maxHeight: '75vh', display: 'flex', flexDirection: 'column',
+    display: 'flex', flexDirection: 'column',
     zIndex: 301,
     boxShadow: '0 -4px 30px rgba(0,0,0,0.15)',
   };
@@ -45,6 +72,7 @@ export default function BottomSheet({ isOpen, onClose, title, children }: Props)
 
   const bodyStyle: React.CSSProperties = {
     padding: '16px 20px',
+    paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
     overflowY: 'auto', flex: 1,
   };
 
@@ -55,7 +83,15 @@ export default function BottomSheet({ isOpen, onClose, title, children }: Props)
         style={backdropStyle}
         onClick={onClose}
       />
-      <div style={sheetStyle} role="dialog" aria-modal="true" aria-label={title}>
+      <div
+        ref={sheetRef}
+        tabIndex={-1}
+        className="bottom-sheet"
+        style={sheetStyle}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
         <div style={handleStyle} />
         <div style={headerStyle}>{title}</div>
         <div style={bodyStyle}>{children}</div>

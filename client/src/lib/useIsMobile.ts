@@ -28,20 +28,19 @@ function readBreakpoint(): Breakpoint {
 }
 
 /**
- * Subscribes to every breakpoint boundary. We listen on all three media
- * queries *and* on `window` `resize` as a belt-and-braces fallback, so the
- * snapshot can never get stuck on a stale value if one signal fails to fire.
+ * Subscribes to every breakpoint boundary by listening on all three media
+ * queries' `change` events. Combined with `useSyncExternalStore` re-deriving
+ * the snapshot from a live `readBreakpoint()` read, this covers every viewport
+ * transition without a `resize` listener.
  */
 function subscribe(onStoreChange: () => void): () => void {
   if (!canMatchMedia()) return () => {};
 
   const lists = QUERIES.map((q) => window.matchMedia(q));
   lists.forEach((list) => list.addEventListener('change', onStoreChange));
-  window.addEventListener('resize', onStoreChange);
 
   return () => {
     lists.forEach((list) => list.removeEventListener('change', onStoreChange));
-    window.removeEventListener('resize', onStoreChange);
   };
 }
 

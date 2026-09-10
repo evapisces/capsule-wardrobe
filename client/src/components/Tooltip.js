@@ -1,0 +1,66 @@
+import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useBreakpoint } from '../lib/useIsMobile';
+const MARGIN = 8;
+export default function Tooltip({ content, children }) {
+    const [open, setOpen] = useState(false);
+    const [coords, setCoords] = useState(null);
+    const triggerRef = useRef(null);
+    const bubbleRef = useRef(null);
+    const breakpoint = useBreakpoint();
+    useEffect(() => {
+        if (!open)
+            return;
+        // The bubble position is computed once from getBoundingClientRect, so any
+        // scroll or resize invalidates it — dismiss rather than let it drift.
+        const dismiss = () => setOpen(false);
+        window.addEventListener('scroll', dismiss, true);
+        window.addEventListener('resize', dismiss);
+        return () => {
+            window.removeEventListener('scroll', dismiss, true);
+            window.removeEventListener('resize', dismiss);
+        };
+    }, [open]);
+    useEffect(() => {
+        if (!open)
+            return;
+        const handleOutside = (e) => {
+            const target = e.target;
+            if (triggerRef.current && !triggerRef.current.contains(target) &&
+                !(bubbleRef.current && bubbleRef.current.contains(target))) {
+                setOpen(false);
+            }
+        };
+        document.addEventListener('click', handleOutside);
+        return () => document.removeEventListener('click', handleOutside);
+    }, [open]);
+    useLayoutEffect(() => {
+        if (!open || !triggerRef.current)
+            return;
+        const triggerRect = triggerRef.current.getBoundingClientRect();
+        const bubbleRect = bubbleRef.current?.getBoundingClientRect();
+        const bubbleWidth = bubbleRect?.width ?? 220;
+        const bubbleHeight = bubbleRect?.height ?? 40;
+        let left = triggerRect.left + triggerRect.width / 2 - bubbleWidth / 2;
+        left = Math.min(Math.max(left, MARGIN), window.innerWidth - bubbleWidth - MARGIN);
+        let top = triggerRect.top - bubbleHeight - MARGIN;
+        if (top < MARGIN) {
+            top = triggerRect.bottom + MARGIN;
+        }
+        setCoords({ top, left });
+    }, [open, content]);
+    return (_jsxs(_Fragment, { children: [_jsx("span", { ref: triggerRef, style: { display: 'inline-block' }, onMouseEnter: () => setOpen(true), onMouseLeave: () => setOpen(false), onClick: (e) => { e.stopPropagation(); setOpen((o) => !o); }, children: children }), open && createPortal(_jsx("div", { ref: bubbleRef, style: {
+                    position: 'fixed',
+                    top: coords?.top ?? -9999,
+                    left: coords?.left ?? -9999,
+                    visibility: coords ? 'visible' : 'hidden',
+                    background: '#2b2b2b', color: '#fff', fontSize: '12px', lineHeight: 1.4,
+                    padding: '8px 10px', borderRadius: '6px', zIndex: 400,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                    width: 'max-content',
+                    maxWidth: breakpoint === 'mobile' ? 'min(220px, calc(100vw - 16px))' : '220px',
+                    whiteSpace: 'normal', textAlign: 'center',
+                    pointerEvents: 'none',
+                }, children: content }), document.body)] }));
+}

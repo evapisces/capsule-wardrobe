@@ -1,5 +1,6 @@
 import type { ClosetItem } from '@capsule/shared';
 import Tooltip from './Tooltip';
+import { useBreakpoint } from '../lib/useIsMobile';
 
 interface Props {
   item: ClosetItem;
@@ -26,6 +27,8 @@ function formatLastWorn(item: ClosetItem): string {
 }
 
 export default function ItemCard({ item, isInActiveCapsule, onClick, maxWearCount }: Props) {
+  const isMobile = useBreakpoint() === 'mobile';
+  const photoWidth = isMobile ? '156px' : '186px';
   const showBadge = (item.capsuleCount ?? 0) > (isInActiveCapsule ? 1 : 0);
   const wearCount = item.wearCount ?? 0;
   const dormant = item.dormant ?? false;
@@ -33,8 +36,11 @@ export default function ItemCard({ item, isInActiveCapsule, onClick, maxWearCoun
 
   const cardStyle: React.CSSProperties = {
     position: 'relative',
-    width: '186px',
+    width: photoWidth,
+    minWidth: '44px',
+    minHeight: '44px',
     flex: '0 0 auto',
+    scrollSnapAlign: 'start',
     cursor: onClick ? 'pointer' : 'default',
     background: 'transparent',
     border: 'none',
@@ -43,8 +49,8 @@ export default function ItemCard({ item, isInActiveCapsule, onClick, maxWearCoun
   };
 
   const photoStyle: React.CSSProperties = {
-    width: '186px',
-    height: '212px',
+    width: photoWidth,
+    aspectRatio: '186 / 212',
     borderRadius: '10px',
     border: isInActiveCapsule ? '1.5px solid var(--accent-green)' : '1px solid var(--line-strong)',
     background: item.photoUrl

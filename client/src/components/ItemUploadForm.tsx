@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClosetItem, uploadPhoto, getAllCapsules, addItemToCapsule } from '../lib/api';
+import { useBreakpoint } from '../lib/useIsMobile';
 import type { ItemCategory, Climate } from '@capsule/shared';
 
 interface Props {
@@ -20,6 +21,29 @@ const inputStyle: React.CSSProperties = {
 const hintStyle: React.CSSProperties = { fontSize: '11.5px', color: 'var(--ink-tertiary)' };
 
 export default function ItemUploadForm({ closetId, onSuccess, onCancel }: Props) {
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
+  // The photo / fields split needs ~900px of comfortable room; below the desktop
+  // breakpoint (modal is capped at 880px) it collapses to one column.
+  const singleColumn = bp !== 'desktop';
+
+  const responsiveInputStyle: React.CSSProperties = isMobile
+    ? { ...inputStyle, fontSize: '16px' } // >= 16px stops iOS Safari auto-zooming on focus
+    : inputStyle;
+
+  const footerStyle: React.CSSProperties = {
+    display: 'flex',
+    gap: '10px',
+    padding: isMobile ? '14px 16px' : '18px 26px',
+    borderTop: '1px solid var(--line-soft)',
+    ...(isMobile
+      ? { flexDirection: 'column', position: 'sticky', bottom: 0, background: 'var(--bg-page)' }
+      : { justifyContent: 'flex-end' }),
+  };
+  const footerButtonStyle: React.CSSProperties | undefined = isMobile
+    ? { width: '100%', minHeight: '44px' }
+    : undefined;
+
   const qc = useQueryClient();
   const [name, setName] = useState('');
   const [category, setCategory] = useState<ItemCategory>('tops');
@@ -73,10 +97,10 @@ export default function ItemUploadForm({ closetId, onSuccess, onCancel }: Props)
   };
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} style={{ width: '880px', maxWidth: '90vw' }}>
+    <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} style={{ width: '100%', maxWidth: '880px' }}>
       <div style={{
         display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-        padding: '20px 26px', borderBottom: '1px solid var(--line-soft)',
+        padding: isMobile ? '18px 16px' : '20px 26px', borderBottom: '1px solid var(--line-soft)',
       }}>
         <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', fontWeight: 400, color: 'var(--ink-primary)' }}>
           Add an item
@@ -84,13 +108,21 @@ export default function ItemUploadForm({ closetId, onSuccess, onCancel }: Props)
         <span className="eyebrow">Step 2 of 2 · Details</span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '30px', padding: '26px' }}>
+      <div
+        data-testid="upload-photo-grid"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: singleColumn ? '1fr' : '300px 1fr',
+          gap: '30px',
+          padding: isMobile ? '18px 16px' : '26px',
+        }}
+      >
         <div>
           <label
             htmlFor="photo"
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              height: '340px', borderRadius: '11px', cursor: 'pointer',
+              height: isMobile ? '180px' : '340px', borderRadius: '11px', cursor: 'pointer',
               border: '1.5px dashed var(--line-dashed-strong)',
               background: photoPreview
                 ? `center/cover no-repeat url(${photoPreview})`
@@ -112,18 +144,18 @@ export default function ItemUploadForm({ closetId, onSuccess, onCancel }: Props)
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignContent: 'start' }}>
+        <div data-testid="upload-field-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px', alignContent: 'start' }}>
           <div style={fieldStyle}>
             <label style={labelStyle} htmlFor="name">Name *</label>
-            <input id="name" aria-label="Name" style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} required />
+            <input id="name" aria-label="Name" style={responsiveInputStyle} value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div style={fieldStyle}>
             <label style={labelStyle} htmlFor="brand">Brand</label>
-            <input id="brand" style={inputStyle} value={brand} onChange={(e) => setBrand(e.target.value)} />
+            <input id="brand" style={responsiveInputStyle} value={brand} onChange={(e) => setBrand(e.target.value)} />
           </div>
           <div style={fieldStyle}>
             <label style={labelStyle} htmlFor="category">Category *</label>
-            <select id="category" aria-label="Category" style={inputStyle} value={category} onChange={(e) => setCategory(e.target.value as ItemCategory)}>
+            <select id="category" aria-label="Category" style={responsiveInputStyle} value={category} onChange={(e) => setCategory(e.target.value as ItemCategory)}>
               <option value="tops">Tops</option>
               <option value="bottoms">Bottoms</option>
               <option value="dresses">Dresses</option>
@@ -135,15 +167,15 @@ export default function ItemUploadForm({ closetId, onSuccess, onCancel }: Props)
           </div>
           <div style={fieldStyle}>
             <label style={labelStyle} htmlFor="size">Size</label>
-            <input id="size" style={inputStyle} value={size} onChange={(e) => setSize(e.target.value)} />
+            <input id="size" style={responsiveInputStyle} value={size} onChange={(e) => setSize(e.target.value)} />
           </div>
           <div style={fieldStyle}>
             <label style={labelStyle} htmlFor="color">Colour</label>
-            <input id="color" style={inputStyle} value={color} onChange={(e) => setColor(e.target.value)} />
+            <input id="color" style={responsiveInputStyle} value={color} onChange={(e) => setColor(e.target.value)} />
           </div>
           <div style={fieldStyle}>
             <label style={labelStyle} htmlFor="climate">Climate band</label>
-            <select id="climate" style={inputStyle} value={climate} onChange={(e) => setClimate(e.target.value as Climate | '')}>
+            <select id="climate" style={responsiveInputStyle} value={climate} onChange={(e) => setClimate(e.target.value as Climate | '')}>
               <option value="">—</option>
               <option value="tropical">Tropical</option>
               <option value="temperate">Temperate</option>
@@ -154,7 +186,7 @@ export default function ItemUploadForm({ closetId, onSuccess, onCancel }: Props)
           </div>
           <div style={fieldStyle}>
             <label style={labelStyle} htmlFor="pricePaid">Price paid</label>
-            <input id="pricePaid" type="number" min="0" step="0.01" style={inputStyle} value={pricePaid} onChange={(e) => setPricePaid(e.target.value)} />
+            <input id="pricePaid" type="number" min="0" step="0.01" style={responsiveInputStyle} value={pricePaid} onChange={(e) => setPricePaid(e.target.value)} />
             <span style={hintStyle}>Used for cost per wear</span>
           </div>
 
@@ -185,9 +217,9 @@ export default function ItemUploadForm({ closetId, onSuccess, onCancel }: Props)
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', padding: '18px 26px', borderTop: '1px solid var(--line-soft)' }}>
-        <button type="button" className="btn-secondary" onClick={onCancel}>Back</button>
-        <button type="submit" className="btn-primary" disabled={!name || uploading || mutation.isPending}>
+      <div style={footerStyle}>
+        <button type="button" className="btn-secondary" style={footerButtonStyle} onClick={onCancel}>Back</button>
+        <button type="submit" className="btn-primary" style={footerButtonStyle} disabled={!name || uploading || mutation.isPending}>
           {uploading ? 'Uploading…' : mutation.isPending ? 'Saving…' : 'Save item'}
         </button>
       </div>

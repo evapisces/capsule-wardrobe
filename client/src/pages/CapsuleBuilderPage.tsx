@@ -7,10 +7,10 @@ import {
   addItemToOutfit, removeItemFromOutfit,
 } from '../lib/api';
 import { useTopBarActions } from '../lib/topBarSlot';
-import { useIsMobile } from '../lib/useIsMobile';
+import { useBreakpoint } from '../lib/useIsMobile';
 import BoardChip from '../components/BoardChip';
 import BottomSheet from '../components/BottomSheet';
-import { CHIP_WIDTH, CHIP_HEIGHT, outfitPixelRect, rectsOverlap, pointInRect, type PixelRect } from '../lib/boardGeometry';
+import { CHIP_WIDTH, CHIP_HEIGHT, outfitPixelRect, rectsOverlap, pointInRect, nextChipPlacement, type PixelRect } from '../lib/boardGeometry';
 import type { BoardItem, BoardOutfit, ItemCategory } from '@capsule/shared';
 
 const DRAWER_CATEGORIES: { key: ItemCategory; label: string }[] = [
@@ -28,7 +28,12 @@ export default function CapsuleBuilderPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const isMobile = useIsMobile();
+  const breakpoint = useBreakpoint();
+  const isTablet = breakpoint === 'tablet';
+  const isDesktop = breakpoint === 'desktop';
+  // Mobile AND tablet get the vertical outfit-list layout; the freeform board
+  // (mouse-only drag-and-drop + lasso) is desktop-only.
+  const useListLayout = !isDesktop;
   const boardRef = useRef<HTMLDivElement>(null);
 
   const [drawerCategory, setDrawerCategory] = useState<ItemCategory | null>(null);
@@ -193,7 +198,11 @@ export default function CapsuleBuilderPage() {
         {board.climate && (
           <button
             onClick={() => setDrawerAllClimates((v) => !v)}
-            style={{ marginLeft: '8px', background: 'none', border: 'none', color: 'var(--accent-green)', fontSize: '12px', padding: 0, cursor: 'pointer' }}
+            style={{
+              marginLeft: '8px', background: 'none', border: 'none', color: 'var(--accent-green)',
+              fontSize: '12px', padding: 0, cursor: 'pointer',
+              minHeight: useListLayout ? '44px' : undefined,
+            }}
           >
             {drawerAllClimates ? 'Filter to climate' : 'Show all'}
           </button>
@@ -204,26 +213,29 @@ export default function CapsuleBuilderPage() {
           <button
             key={c.key}
             className={`chip${drawerCategory === c.key ? ' selected' : ''}`}
-            style={{ height: '28px', padding: '0 12px', fontSize: '12px' }}
+            style={{ minHeight: useListLayout ? '44px' : '28px', padding: '0 12px', fontSize: '12px' }}
             onClick={() => setDrawerCategory((cur) => (cur === c.key ? null : c.key))}
           >
             {c.label}
           </button>
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isTablet ? 'repeat(3, 1fr)' : '1fr 1fr', gap: '10px' }}>
         {drawerItems
           .filter((item) => drawerAllClimates || item.matchesClimate)
           .map((item) => (
             <div
               key={item.id}
-              draggable={!isMobile}
+              draggable={isDesktop}
               onDragStart={(e) => handleDragStart(e, item.id)}
               onClick={() => {
-                if (!isMobile) return;
-                placeMutation.mutate({ itemId: item.id, x: 0.1, y: 0.1 }, { onSuccess: () => { invalidate(); setDrawerSheetOpen(false); } });
+                if (isDesktop) return;
+                // Deterministic non-overlapping grid walk so items added from
+                // the list layout don't all stack at one coordinate on desktop.
+                const { x, y } = nextChipPlacement(board.items.length);
+                placeMutation.mutate({ itemId: item.id, x, y }, { onSuccess: () => { invalidate(); setDrawerSheetOpen(false); } });
               }}
-              style={{ cursor: isMobile ? 'pointer' : 'grab' }}
+              style={{ cursor: isDesktop ? 'grab' : 'pointer' }}
             >
               <div style={{
                 height: '96px', borderRadius: '8px', border: '1px solid var(--line-strong)',
@@ -257,32 +269,41 @@ export default function CapsuleBuilderPage() {
         {offClimatePill}
       </div>
       <p style={{ fontSize: '13px', color: 'var(--ink-tertiary)', marginTop: '6px', marginBottom: '18px' }}>
-        {isMobile
-          ? 'Tap "Add item" to bring garments into an outfit.'
-          : 'Drag any garment onto the board. Lasso a group to name it as an outfit. Off-climate items are marked amber.'}
+        {breakpoint === 'mobile' && 'Tap "Add item" to bring garments into an outfit.'}
+        {breakpoint === 'tablet' && 'Tap "Add item" to bring garments into an outfit. Off-climate items are marked amber.'}
+        {breakpoint === 'desktop' && 'Drag any garment onto the board. Lasso a group to name it as an outfit. Off-climate items are marked amber.'}
       </p>
 
-      {isMobile ? (
-        <div>
-          {board.outfits.map((outfit) => (
-            <div key={outfit.id} style={{ marginBottom: '22px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span className="section-label">{outfit.name}</span>
-                <button
-                  onClick={() => deleteOutfitMutation.mutate(outfit.id)}
-                  style={{ background: 'none', border: 'none', color: 'var(--ink-tertiary)', fontSize: '12px', cursor: 'pointer' }}
-                >
-                  Ungroup
-                </button>
+      {useListLayout ? (
+        <div data-testid="outfit-list">
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isTablet ? '1fr 1fr' : '1fr',
+            gap: '22px',
+          }}>
+            {board.outfits.map((outfit) => (
+              <div key={outfit.id}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span className="section-label">{outfit.name}</span>
+                  <button
+                    onClick={() => deleteOutfitMutation.mutate(outfit.id)}
+                    style={{
+                      background: 'none', border: 'none', color: 'var(--ink-tertiary)',
+                      fontSize: '12px', cursor: 'pointer', minHeight: '44px', padding: '0 8px',
+                    }}
+                  >
+                    Ungroup
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', overflowX: 'auto' }}>
+                  {board.items.filter((i) => outfit.itemIds.includes(i.id)).map((item) => (
+                    <MobileChip key={item.id} item={item} onRemove={() => removeMutation.mutate(item.id)} />
+                  ))}
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: '10px', overflowX: 'auto' }}>
-                {board.items.filter((i) => outfit.itemIds.includes(i.id)).map((item) => (
-                  <MobileChip key={item.id} item={item} onRemove={() => removeMutation.mutate(item.id)} />
-                ))}
-              </div>
-            </div>
-          ))}
-          <div style={{ marginBottom: '18px' }}>
+            ))}
+          </div>
+          <div style={{ marginTop: '22px', marginBottom: '18px' }}>
             <span className="section-label">Unsorted</span>
             <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', marginTop: '8px' }}>
               {board.items.filter((i) => !i.outfitId).map((item) => (
@@ -300,6 +321,7 @@ export default function CapsuleBuilderPage() {
           <div style={{ paddingTop: '20px', paddingRight: '26px' }}>
             <div
               ref={boardRef}
+              data-testid="board-canvas"
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleBoardDrop}
               onMouseDown={handleBoardMouseDown}
@@ -307,7 +329,7 @@ export default function CapsuleBuilderPage() {
               onMouseUp={handleBoardMouseUp}
               style={{
                 position: 'relative',
-                height: '452px',
+                height: 'clamp(452px, 55vh, 720px)',
                 borderRadius: '12px',
                 border: '1px dashed var(--line-dashed)',
                 background: 'var(--bg-raised)',
@@ -414,10 +436,21 @@ function MobileChip({ item, onRemove }: { item: BoardItem; onRemove: () => void 
         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px',
       }}>
         {!item.photoUrl && '👕'}
-        <button onClick={onRemove} style={{
-          position: 'absolute', top: '-6px', right: '-6px', width: '18px', height: '18px', borderRadius: '50%',
-          background: 'var(--ink-primary)', color: '#fff', border: 'none', fontSize: '10px', lineHeight: 1, cursor: 'pointer',
-        }}>×</button>
+        <button
+          onClick={onRemove}
+          aria-label={`Remove ${item.name}`}
+          style={{
+            position: 'absolute', top: 0, right: 0, width: '44px', height: '44px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+          }}
+        >
+          <span style={{
+            width: '22px', height: '22px', borderRadius: '50%', background: 'var(--ink-primary)',
+            color: '#fff', fontSize: '12px', lineHeight: 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>×</span>
+        </button>
       </div>
       <div style={{ fontSize: '11px', marginTop: '4px', textAlign: 'center' }}>{item.offClimate ? 'off-climate' : item.name}</div>
     </div>

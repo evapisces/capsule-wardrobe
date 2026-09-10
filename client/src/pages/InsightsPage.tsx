@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getClosets, getClosetStats, getInsights } from '../lib/api';
 import StatStrip, { type Stat } from '../components/StatStrip';
+import { useBreakpoint } from '../lib/useIsMobile';
+
+// Exported so tests can assert the value without relying on jsdom's CSSOM
+// parsing the nested `min()` (AC 7). One column below ~660px.
+export const panelGridColumns = 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))';
 
 function formatPct(n: number): string {
   return `${Math.round(n * 100)}%`;
@@ -15,6 +20,9 @@ function formatDelta(n: number): string {
 
 export default function InsightsPage() {
   const [range, setRange] = useState<'6m' | 'all'>('6m');
+  const breakpoint = useBreakpoint();
+  const isMobile = breakpoint === 'mobile';
+  const pagePadding = isMobile ? '16px' : breakpoint === 'tablet' ? '20px' : '28px';
 
   const { data: closets = [] } = useQuery({ queryKey: ['closets'], queryFn: getClosets });
   const closetId = closets[0]?.id ?? '';
@@ -43,7 +51,7 @@ export default function InsightsPage() {
   const maxWorn = insights?.mostWorn[0]?.wearCount ?? 1;
 
   return (
-    <div style={{ padding: '28px', maxWidth: '1280px', margin: '0 auto' }}>
+    <div style={{ padding: pagePadding, maxWidth: '1280px', margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '22px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div className="eyebrow">
@@ -64,7 +72,7 @@ export default function InsightsPage() {
 
       {stats && <div style={{ marginBottom: '30px' }}><StatStrip stats={statCells} /></div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '26px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: panelGridColumns, gap: '26px' }}>
         <div>
           <div className="section-label" style={{ marginBottom: '12px' }}>Most worn</div>
           {(insights?.mostWorn.length ?? 0) === 0 ? (
@@ -118,7 +126,7 @@ export default function InsightsPage() {
                     <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--ink-primary)' }}>{row.name}</div>
                     <div style={{ fontSize: '12.5px', color: 'var(--accent-amber)' }}>{row.reason}</div>
                   </div>
-                  <button className="btn-secondary" style={{ height: '30px', padding: '0 12px', fontSize: '12px', flexShrink: 0 }}>
+                  <button className="btn-secondary" style={{ minHeight: isMobile ? '44px' : '30px', height: isMobile ? undefined : '30px', padding: '0 12px', fontSize: '12px', flexShrink: 0 }}>
                     {row.actionLabel}
                   </button>
                 </div>
@@ -130,16 +138,28 @@ export default function InsightsPage() {
           {(insights?.capsuleEfficiency.length ?? 0) === 0 ? (
             <p style={{ fontSize: '12.5px', color: 'var(--ink-tertiary)' }}>No capsules yet.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {insights!.capsuleEfficiency.map((c) => (
-                <div key={c.capsuleId} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 26px', gap: '12px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--ink-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                  <div style={{ height: '3px', borderRadius: '2px', background: '#E8E3DA', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${c.efficiency}%`, background: 'var(--accent-green)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '14px' : '10px' }}>
+              {insights!.capsuleEfficiency.map((c) =>
+                isMobile ? (
+                  <div key={c.capsuleId}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--ink-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', textAlign: 'right', color: 'var(--ink-tertiary)', flexShrink: 0 }}>{c.efficiency}</span>
+                    </div>
+                    <div style={{ height: '3px', borderRadius: '2px', background: '#E8E3DA', overflow: 'hidden', marginTop: '6px', width: '100%' }}>
+                      <div style={{ height: '100%', width: `${c.efficiency}%`, background: 'var(--accent-green)' }} />
+                    </div>
                   </div>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', textAlign: 'right', color: 'var(--ink-tertiary)' }}>{c.efficiency}</span>
-                </div>
-              ))}
+                ) : (
+                  <div key={c.capsuleId} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 26px', gap: '12px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--ink-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                    <div style={{ height: '3px', borderRadius: '2px', background: '#E8E3DA', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${c.efficiency}%`, background: 'var(--accent-green)' }} />
+                    </div>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', textAlign: 'right', color: 'var(--ink-tertiary)' }}>{c.efficiency}</span>
+                  </div>
+                )
+              )}
             </div>
           )}
         </div>

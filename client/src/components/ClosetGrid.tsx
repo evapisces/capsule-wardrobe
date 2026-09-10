@@ -1,5 +1,9 @@
 import type { ClosetItem, ItemCategory } from '@capsule/shared';
 import ItemCard from './ItemCard';
+import { useBreakpoint } from '../lib/useIsMobile';
+
+/** Page gutter at the mobile breakpoint — kept in sync with ClosetPage. */
+const MOBILE_PAGE_PADDING = 16;
 
 interface Props {
   items: ClosetItem[];
@@ -50,11 +54,13 @@ const shelfNoteStyle: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-const rowStyle: React.CSSProperties = {
+const baseRowStyle: React.CSSProperties = {
   display: 'flex',
   gap: '16px',
   overflowX: 'auto',
   paddingBottom: '4px',
+  scrollSnapType: 'x mandatory',
+  WebkitOverflowScrolling: 'touch',
 };
 
 function shelfNote(items: ClosetItem[]): string | null {
@@ -64,6 +70,20 @@ function shelfNote(items: ClosetItem[]): string | null {
 }
 
 export default function ClosetGrid({ items, activeCapsuleItemIds, onItemClick }: Props) {
+  const isMobile = useBreakpoint() === 'mobile';
+
+  // At mobile the shelf bleeds to the full viewport width: negative page-gutter
+  // margins with matching padding so a card is never clipped by the page gutter.
+  const rowStyle: React.CSSProperties = isMobile
+    ? {
+        ...baseRowStyle,
+        marginLeft: `-${MOBILE_PAGE_PADDING}px`,
+        marginRight: `-${MOBILE_PAGE_PADDING}px`,
+        paddingLeft: `${MOBILE_PAGE_PADDING}px`,
+        paddingRight: `${MOBILE_PAGE_PADDING}px`,
+      }
+    : baseRowStyle;
+
   if (items.length === 0) {
     return (
       <p style={{ color: 'var(--ink-tertiary)', textAlign: 'center', padding: '40px 0', fontSize: '13px' }}>

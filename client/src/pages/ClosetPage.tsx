@@ -49,7 +49,7 @@ export default function ClosetPage() {
     enabled: !!closetId,
   });
 
-  const { data: capsules = [] } = useQuery({ queryKey: ['capsules'], queryFn: getCapsules });
+  const { data: capsules = [] } = useQuery({ queryKey: ['capsules'], queryFn: () => getCapsules() });
 
   useTopBarActions(
     <>

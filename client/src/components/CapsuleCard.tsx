@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import type { Capsule } from '@capsule/shared';
 
 interface Props {
   capsule: Capsule;
   onClick: () => void;
+  archived?: boolean;
+  onArchiveToggle?: () => void;
 }
 
 const cardStyle: React.CSSProperties = {
+  position: 'relative',
   textAlign: 'left',
   border: '1px solid var(--line-strong)',
   borderRadius: '12px',
@@ -24,12 +28,97 @@ const thumbStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 
-export default function CapsuleCard({ capsule, onClick }: Props) {
+const menuBtnStyle: React.CSSProperties = {
+  border: 'none',
+  background: 'transparent',
+  cursor: 'pointer',
+  fontSize: '20px',
+  lineHeight: 1,
+  padding: '2px 8px',
+  borderRadius: '6px',
+  color: 'var(--ink-tertiary)',
+};
+
+export default function CapsuleCard({ capsule, onClick, archived = false, onArchiveToggle }: Props) {
   const thumbnails = capsule.thumbnails ?? [];
   const extra = (capsule.itemCount ?? 0) - thumbnails.length;
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const stop = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
 
   return (
-    <button style={cardStyle} onClick={onClick}>
+    <div
+      style={cardStyle}
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+    >
+      {onArchiveToggle && (
+        <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1 }} onClick={stop}>
+          <button
+            type="button"
+            aria-label="Capsule actions"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            style={menuBtnStyle}
+            onClick={(e) => {
+              stop(e);
+              setMenuOpen((o) => !o);
+            }}
+          >
+            …
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: '4px',
+                background: 'var(--bg-page)',
+                border: '1px solid var(--line-strong)',
+                borderRadius: '9px',
+                boxShadow: '0 6px 18px rgba(23,21,15,0.14)',
+                minWidth: '140px',
+                overflow: 'hidden',
+              }}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  textAlign: 'left',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  padding: '10px 14px',
+                  fontSize: '13px',
+                  color: 'var(--ink-body)',
+                }}
+                onClick={(e) => {
+                  stop(e);
+                  setMenuOpen(false);
+                  onArchiveToggle();
+                }}
+              >
+                {archived ? 'Unarchive' : 'Archive'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ padding: '18px 20px 0' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
           <div>
@@ -94,6 +183,6 @@ export default function CapsuleCard({ capsule, onClick }: Props) {
           </div>
         </div>
       </div>
-    </button>
+    </div>
   );
 }

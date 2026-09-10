@@ -7,10 +7,11 @@ import type { Climate } from '@capsule/shared';
 const router = Router();
 const USER_ID = 'user_1';
 
-router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const archivedOnly = req.query.archived === 'true';
     const capsules = await prisma.capsule.findMany({
-      where: { userId: USER_ID },
+      where: { userId: USER_ID, archivedAt: archivedOnly ? { not: null } : null },
       include: {
         items: { include: { closetItem: { select: { id: true, name: true, photoUrl: true, climate: true } } } },
         trips: { include: { trip: true } },
@@ -36,6 +37,7 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
         tempHighF: capsule.tempHighF,
         tempLowF: capsule.tempLowF,
         createdAt: capsule.createdAt,
+        archivedAt: capsule.archivedAt,
         thumbnails: await signPhotoUrls(items.slice(0, 5).map((i) => ({ id: i.id, name: i.name, photoUrl: i.photoUrl }))),
         itemCount: items.length,
         outfitCount: capsule.outfits.length,
@@ -110,6 +112,33 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
   try {
     await prisma.capsule.delete({ where: { id: req.params.id } });
     res.status(204).send();
+  } catch (err) { next(err); }
+});
+
+// Soft-archive: retire a capsule from the active list without touching its
+// items, outfits or trip links. Idempotent.
+router.post('/:id/archive', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const existing = await prisma.capsule.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: 'Capsule not found' });
+    const capsule = await prisma.capsule.update({
+      where: { id: req.params.id },
+      data: { archivedAt: new Date() },
+    });
+    res.json(capsule);
+  } catch (err) { next(err); }
+});
+
+// Unarchive: bring a capsule back into the active list. Idempotent.
+router.delete('/:id/archive', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const existing = await prisma.capsule.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: 'Capsule not found' });
+    const capsule = await prisma.capsule.update({
+      where: { id: req.params.id },
+      data: { archivedAt: null },
+    });
+    res.json(capsule);
   } catch (err) { next(err); }
 });
 

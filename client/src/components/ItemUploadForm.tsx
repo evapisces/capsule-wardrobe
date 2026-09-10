@@ -33,7 +33,7 @@ export default function ItemUploadForm({ closetId, onSuccess, onCancel }: Props)
   const [uploading, setUploading] = useState(false);
   const [selectedCapsuleId, setSelectedCapsuleId] = useState<string | null>(null);
 
-  const { data: capsules = [] } = useQuery({ queryKey: ['capsules'], queryFn: getCapsules });
+  const { data: capsules = [] } = useQuery({ queryKey: ['capsules'], queryFn: () => getCapsules() });
 
   const mutation = useMutation({
     mutationFn: async () => {

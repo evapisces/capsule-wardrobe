@@ -41,7 +41,7 @@ export default function TripDetailPage() {
 
   const { data: allCapsules = [] } = useQuery({
     queryKey: ['capsules'],
-    queryFn: getCapsules,
+    queryFn: () => getCapsules(),
     enabled: sheetOpen,
   });
 

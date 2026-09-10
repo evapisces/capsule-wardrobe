@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  getTrip, getCapsules, linkCapsuleToTrip,
+  getTrip, getAllCapsules, linkCapsuleToTrip,
   unlinkCapsuleFromTrip, deleteTrip, getTripWeather,
   getTripDays, setTripDayOutfit, getTripPacking, setPackingItemPacked, getPackingSuggestions,
 } from '../lib/api';
@@ -40,8 +40,10 @@ export default function TripDetailPage() {
   });
 
   const { data: allCapsules = [] } = useQuery({
-    queryKey: ['capsules'],
-    queryFn: getCapsules,
+    // Includes archived capsules so an already-linked archived capsule still
+    // shows in the trip-linking picker (explicitly out of scope for archiving).
+    queryKey: ['capsules', 'all'],
+    queryFn: getAllCapsules,
     enabled: sheetOpen,
   });
 

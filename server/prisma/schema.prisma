@@ -78,6 +78,7 @@ model Capsule {
   tempHighF      Int?
   tempLowF       Int?
   createdAt      DateTime        @default(now())
+  archivedAt     DateTime?
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   items          CapsuleItem[]
   trips          TripCapsule[]

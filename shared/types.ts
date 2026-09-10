@@ -192,6 +192,7 @@ export interface Capsule {
   items?: ClosetItem[];
   outfits?: { id: string; name: string }[];
   createdAt: string;
+  archivedAt?: string | null;
   // Present on the list endpoint (GET /api/capsules) only:
   thumbnails?: CapsuleThumbnail[];
   itemCount?: number;

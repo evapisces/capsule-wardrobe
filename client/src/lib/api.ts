@@ -93,7 +93,15 @@ export const uploadPhoto = async (file: File): Promise<UploadResponse> => {
 };
 
 // Capsules
-export const getCapsules = () => request<Capsule[]>('/capsules');
+export const getCapsules = (archived?: boolean) =>
+  request<Capsule[]>(`/capsules${archived ? '?archived=true' : ''}`);
+// Active + archived combined. For pickers / membership lists (trip-linking,
+// item→capsule selector, closet) that must still see archived capsules even
+// though the main Capsules list is now active-only.
+export const getAllCapsules = async (): Promise<Capsule[]> => {
+  const [activeList, archivedList] = await Promise.all([getCapsules(false), getCapsules(true)]);
+  return [...activeList, ...archivedList];
+};
 export const createCapsule = (data: { name: string; description?: string; climate?: Climate }) =>
   request<Capsule>('/capsules', { method: 'POST', body: JSON.stringify(data) });
 export const getCapsule = (id: string) => request<Capsule>(`/capsules/${id}`);
@@ -101,6 +109,10 @@ export const updateCapsule = (id: string, data: Partial<Capsule>) =>
   request<Capsule>(`/capsules/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteCapsule = (id: string) =>
   request<void>(`/capsules/${id}`, { method: 'DELETE' });
+export const archiveCapsule = (id: string) =>
+  request<Capsule>(`/capsules/${id}/archive`, { method: 'POST' });
+export const unarchiveCapsule = (id: string) =>
+  request<Capsule>(`/capsules/${id}/archive`, { method: 'DELETE' });
 export const addItemToCapsule = (capsuleId: string, closetItemId: string) =>
   request<void>(`/capsules/${capsuleId}/items/${closetItemId}`, { method: 'POST' });
 export const removeItemFromCapsule = (capsuleId: string, closetItemId: string) =>

@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { getCapsules, createCapsule } from '../lib/api';
+import { getCapsules, createCapsule, archiveCapsule, unarchiveCapsule } from '../lib/api';
 import { useTopBarActions } from '../lib/topBarSlot';
 import CapsuleCard from '../components/CapsuleCard';
 import type { Capsule, Climate } from '@capsule/shared';
 
-type ChipFilter = 'all' | 'trip' | 'standing' | 'hot';
+type ChipFilter = 'all' | 'trip' | 'standing' | 'hot' | 'archived';
 
 const CHIPS: { key: ChipFilter; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'trip', label: 'Trips' },
   { key: 'standing', label: 'Standing' },
   { key: 'hot', label: 'Hot climate' },
+  { key: 'archived', label: 'Archived' },
 ];
 
 const gridStyle: React.CSSProperties = {
@@ -39,9 +40,29 @@ export default function CapsulesPage() {
   const [description, setDescription] = useState('');
   const [climate, setClimate] = useState<Climate | ''>('');
 
-  const { data: capsules = [], isLoading } = useQuery({
+  const isArchivedView = chip === 'archived';
+
+  const { data: capsules = [], isLoading: activeLoading } = useQuery({
     queryKey: ['capsules'],
-    queryFn: getCapsules,
+    queryFn: () => getCapsules(),
+  });
+
+  const { data: archivedCapsules = [], isLoading: archivedLoading } = useQuery({
+    queryKey: ['capsules', 'archived'],
+    queryFn: () => getCapsules(true),
+    enabled: isArchivedView,
+  });
+
+  const isLoading = isArchivedView ? archivedLoading : activeLoading;
+
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => archiveCapsule(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['capsules'] }),
+  });
+
+  const unarchiveMutation = useMutation({
+    mutationFn: (id: string) => unarchiveCapsule(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['capsules'] }),
   });
 
   const createMutation = useMutation({
@@ -62,12 +83,14 @@ export default function CapsulesPage() {
 
   const tripCount = capsules.filter((c) => c.kind === 'trip').length;
 
-  const filtered = capsules.filter((c) => {
-    if (chip === 'trip') return c.kind === 'trip';
-    if (chip === 'standing') return c.kind !== 'trip';
-    if (chip === 'hot') return c.climate === 'tropical';
-    return true;
-  });
+  const filtered = isArchivedView
+    ? archivedCapsules
+    : capsules.filter((c) => {
+        if (chip === 'trip') return c.kind === 'trip';
+        if (chip === 'standing') return c.kind !== 'trip';
+        if (chip === 'hot') return c.climate === 'tropical';
+        return true;
+      });
 
   return (
     <div style={{ padding: '28px', maxWidth: '1280px', margin: '0 auto' }}>
@@ -95,13 +118,23 @@ export default function CapsulesPage() {
 
       <div style={gridStyle}>
         {filtered.map((capsule) => (
-          <CapsuleCard key={capsule.id} capsule={capsule} onClick={() => navigate(`/capsules/${capsule.id}`)} />
+          <CapsuleCard
+            key={capsule.id}
+            capsule={capsule}
+            onClick={() => navigate(`/capsules/${capsule.id}`)}
+            archived={isArchivedView}
+            onArchiveToggle={() =>
+              isArchivedView
+                ? unarchiveMutation.mutate(capsule.id)
+                : archiveMutation.mutate(capsule.id)
+            }
+          />
         ))}
       </div>
 
       {filtered.length === 0 && !isLoading && (
         <p style={{ color: 'var(--ink-tertiary)', textAlign: 'center', padding: '40px 0', fontSize: '13px' }}>
-          No capsules yet — create your first one.
+          {isArchivedView ? 'No archived capsules' : 'No capsules yet — create your first one.'}
         </p>
       )}
 

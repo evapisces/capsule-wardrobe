@@ -14,6 +14,7 @@ Client/server TypeScript monorepo.
 | Run everything in dev | `npm run dev` |
 | Client tests | `npm test --prefix client` |
 | Client e2e overflow tests (headless Chromium, no DB) | `npm run test:e2e:install --prefix client` once, then `npm run test:e2e --prefix client` |
+| Type-check the client e2e suite against `@capsule/shared` | `npm run test:e2e:typecheck --prefix client` |
 | Server tests | `docker compose up -d db && npm test --prefix server` |
 | Client build / typecheck | `npm run build --prefix client` |
 | Server build / typecheck | `npm run build --prefix server` |

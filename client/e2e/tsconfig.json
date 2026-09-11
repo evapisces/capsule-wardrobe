@@ -1,0 +1,12 @@
+{
+  "//": "Type-checks the Playwright suite (issue #15). client/tsconfig.json only covers src/, and Playwright never type-checks the files it runs, so e2e/fixtures/api.ts could silently drift from the @capsule/shared API contract. Run via `npm run test:e2e:typecheck --prefix client`. Kept separate from the app build so `npm run build --prefix client` never emits or checks e2e/.",
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": [],
+    "paths": {
+      "@capsule/shared": ["../../shared/types"]
+    }
+  },
+  "include": ["."]
+}

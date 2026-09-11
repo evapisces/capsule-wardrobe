@@ -2,6 +2,7 @@ import request from 'supertest';
 import { createApp } from '../app';
 import prisma from '../lib/prisma';
 import { geocodeDestination, fetchTripTemps, classifyClimate } from '../lib/weather';
+import { loginAs } from './helpers/auth';
 
 jest.mock('../lib/weather', () => ({
   geocodeDestination: jest.fn(),
@@ -11,13 +12,10 @@ jest.mock('../lib/weather', () => ({
 
 const app = createApp();
 const USER_ID = 'user_1';
+let authCookie: string;
 
 beforeAll(async () => {
-  await prisma.user.upsert({
-    where: { id: USER_ID },
-    update: {},
-    create: { id: USER_ID, email: 'test@capsule.local' },
-  });
+  authCookie = await loginAs(USER_ID);
 });
 
 afterAll(async () => {
@@ -72,7 +70,7 @@ describe('GET /api/trips/:id/weather', () => {
     await prisma.tripCapsule.create({ data: { tripId: trip.id, capsuleId: matchingCapsule.id } });
     await prisma.tripCapsule.create({ data: { tripId: trip.id, capsuleId: mismatchedCapsule.id } });
 
-    const res = await request(app).get(`/api/trips/${trip.id}/weather`);
+    const res = await request(app).get(`/api/trips/${trip.id}/weather`).set('Cookie', authCookie);
 
     expect(res.status).toBe(200);
     expect(res.body.resolvedLocation).toBe('Tokyo, Japan');
@@ -86,7 +84,7 @@ describe('GET /api/trips/:id/weather', () => {
   });
 
   it('returns 404 for a nonexistent trip', async () => {
-    const res = await request(app).get('/api/trips/nonexistent-id/weather');
+    const res = await request(app).get('/api/trips/nonexistent-id/weather').set('Cookie', authCookie);
     expect(res.status).toBe(404);
   });
 });

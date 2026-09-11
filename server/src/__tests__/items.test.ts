@@ -1,17 +1,15 @@
 import request from 'supertest';
 import { createApp } from '../app';
 import prisma from '../lib/prisma';
+import { loginAs } from './helpers/auth';
 
 const app = createApp();
 const USER_ID = 'user_1';
 let closetId: string;
+let authCookie: string;
 
 beforeAll(async () => {
-  await prisma.user.upsert({
-    where: { id: USER_ID },
-    update: {},
-    create: { id: USER_ID, email: 'test@capsule.local' },
-  });
+  authCookie = await loginAs(USER_ID);
   const closet = await prisma.closet.create({
     data: { id: 'test_closet', userId: USER_ID, name: 'Test Closet' },
   });
@@ -33,7 +31,7 @@ describe('GET /api/closets/:id/items', () => {
     await prisma.closetItem.create({
       data: { closetId, name: 'Blue Shirt', category: 'tops', color: 'blue' },
     });
-    const res = await request(app).get(`/api/closets/${closetId}/items`);
+    const res = await request(app).get(`/api/closets/${closetId}/items`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].name).toBe('Blue Shirt');
@@ -46,7 +44,7 @@ describe('GET /api/closets/:id/items', () => {
         { closetId, name: 'Jeans', category: 'bottoms' },
       ],
     });
-    const res = await request(app).get(`/api/closets/${closetId}/items?category=tops`);
+    const res = await request(app).get(`/api/closets/${closetId}/items?category=tops`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].category).toBe('tops');
@@ -62,7 +60,7 @@ describe('GET /api/closets/:id/items', () => {
     await prisma.capsuleItem.create({
       data: { capsuleId: capsule.id, closetItemId: item.id },
     });
-    const res = await request(app).get(`/api/closets/${closetId}/items`);
+    const res = await request(app).get(`/api/closets/${closetId}/items`).set('Cookie', authCookie);
     const found = res.body.find((i: { id: string }) => i.id === item.id);
     expect(found.capsuleCount).toBe(1);
     await prisma.capsuleItem.deleteMany({ where: { capsuleId: capsule.id } });
@@ -74,6 +72,7 @@ describe('POST /api/closets/:id/items', () => {
   it('creates an item', async () => {
     const res = await request(app)
       .post(`/api/closets/${closetId}/items`)
+      .set('Cookie', authCookie)
       .send({ name: 'Linen Top', category: 'tops', color: 'white', size: 'S', brand: 'Everlane' });
     expect(res.status).toBe(201);
     expect(res.body.name).toBe('Linen Top');
@@ -86,7 +85,7 @@ describe('GET /api/items/:id', () => {
     const item = await prisma.closetItem.create({
       data: { closetId, name: 'Single Item', category: 'shoes' },
     });
-    const res = await request(app).get(`/api/items/${item.id}`);
+    const res = await request(app).get(`/api/items/${item.id}`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.id).toBe(item.id);
   });
@@ -95,7 +94,7 @@ describe('GET /api/items/:id', () => {
     const item = await prisma.closetItem.create({
       data: { closetId, name: 'Photo Item', category: 'shoes', photoUrl: 'items/some-key.jpg' },
     });
-    const res = await request(app).get(`/api/items/${item.id}`);
+    const res = await request(app).get(`/api/items/${item.id}`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.photoUrl).not.toBe('items/some-key.jpg');
     expect(res.body.photoUrl).toMatch(/^https?:\/\//);
@@ -110,6 +109,7 @@ describe('PUT /api/items/:id', () => {
     });
     const res = await request(app)
       .put(`/api/items/${item.id}`)
+      .set('Cookie', authCookie)
       .send({ name: 'Updated Name', size: 'M' });
     expect(res.status).toBe(200);
     expect(res.body.name).toBe('Updated Name');
@@ -122,7 +122,7 @@ describe('DELETE /api/items/:id', () => {
     const item = await prisma.closetItem.create({
       data: { closetId, name: 'Delete Me', category: 'tops' },
     });
-    const res = await request(app).delete(`/api/items/${item.id}`);
+    const res = await request(app).delete(`/api/items/${item.id}`).set('Cookie', authCookie);
     expect(res.status).toBe(204);
   });
 });
@@ -133,15 +133,15 @@ describe('POST /api/items/:id/wear', () => {
       data: { closetId, name: 'Wear Test Item', category: 'tops', pricePaid: 20 },
     });
 
-    const first = await request(app).post(`/api/items/${item.id}/wear`);
+    const first = await request(app).post(`/api/items/${item.id}/wear`).set('Cookie', authCookie);
     expect(first.status).toBe(201);
     expect(first.body.wearCount).toBe(1);
 
-    const second = await request(app).post(`/api/items/${item.id}/wear`);
+    const second = await request(app).post(`/api/items/${item.id}/wear`).set('Cookie', authCookie);
     expect(second.status).toBe(201);
     expect(second.body.wearCount).toBe(1); // no double-count same day
 
-    const detail = await request(app).get(`/api/items/${item.id}`);
+    const detail = await request(app).get(`/api/items/${item.id}`).set('Cookie', authCookie);
     expect(detail.body.wearCount).toBe(1);
     expect(detail.body.lastWornAt).not.toBeNull();
     expect(detail.body.costPerWear).toBe(20);
@@ -153,13 +153,13 @@ describe('DELETE /api/items/:id/wear', () => {
     const item = await prisma.closetItem.create({
       data: { closetId, name: 'Undo Wear Item', category: 'tops' },
     });
-    await request(app).post(`/api/items/${item.id}/wear`);
+    await request(app).post(`/api/items/${item.id}/wear`).set('Cookie', authCookie);
 
-    const res = await request(app).delete(`/api/items/${item.id}/wear`);
+    const res = await request(app).delete(`/api/items/${item.id}/wear`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.wearCount).toBe(0);
 
-    const again = await request(app).delete(`/api/items/${item.id}/wear`);
+    const again = await request(app).delete(`/api/items/${item.id}/wear`).set('Cookie', authCookie);
     expect(again.status).toBe(404);
   });
 });
@@ -182,7 +182,7 @@ describe('GET /api/items/:id/capsules', () => {
       ],
     });
 
-    const res = await request(app).get(`/api/items/${item.id}/capsules`);
+    const res = await request(app).get(`/api/items/${item.id}/capsules`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(2);
     const cold = res.body.find((c: { name: string }) => c.name === 'Cold Capsule');
@@ -200,9 +200,9 @@ describe('GET /api/items/:id/wear-history', () => {
     const item = await prisma.closetItem.create({
       data: { closetId, name: 'History Item', category: 'tops' },
     });
-    await request(app).post(`/api/items/${item.id}/wear`);
+    await request(app).post(`/api/items/${item.id}/wear`).set('Cookie', authCookie);
 
-    const res = await request(app).get(`/api/items/${item.id}/wear-history`);
+    const res = await request(app).get(`/api/items/${item.id}/wear-history`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].source).toBe('manual');

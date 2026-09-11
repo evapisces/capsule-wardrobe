@@ -3,12 +3,16 @@ import prisma from '../lib/prisma';
 import { getWearStatsForItems } from '../lib/wearStats';
 import { climateLabel } from '../lib/capsuleStats';
 import { signPhotoUrls } from '../lib/r2';
+import { findOwnedCapsule, findOwnedClosetItem, findOwnedOutfit } from '../lib/ownership';
 
 const router = Router();
 
 // GET /api/capsules/:id/board — everything the outfit builder needs in one call
 router.get('/:id/board', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const owned = await findOwnedCapsule(req.params.id, req.user!.id);
+    if (!owned) return res.status(404).json({ error: 'Capsule not found' });
+
     const capsule = await prisma.capsule.findUnique({
       where: { id: req.params.id },
       include: {
@@ -80,16 +84,17 @@ router.get('/:id/board', async (req: Request, res: Response, next: NextFunction)
 // GET /api/capsules/:id/drawer — closet items not yet in this capsule
 router.get('/:id/drawer', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { category, closetId } = req.query as { category?: string; closetId?: string };
-    const capsule = await prisma.capsule.findUnique({ where: { id: req.params.id } });
+    const capsule = await findOwnedCapsule(req.params.id, req.user!.id);
     if (!capsule) return res.status(404).json({ error: 'Capsule not found' });
+
+    const { category, closetId } = req.query as { category?: string; closetId?: string };
 
     // A user may have more than one closet; the caller (which already knows
     // which closet it's browsing) should pass closetId explicitly. Falling
     // back to "the first closet we find" is only a placeholder for the
     // current single-closet UI and is ambiguous once that's no longer true.
     const closet = closetId
-      ? await prisma.closet.findUnique({ where: { id: closetId } })
+      ? await prisma.closet.findFirst({ where: { id: closetId, userId: req.user!.id } })
       : await prisma.closet.findFirst({ where: { userId: capsule.userId } });
     if (!closet) return res.json([]);
 
@@ -130,6 +135,11 @@ router.get('/:id/drawer', async (req: Request, res: Response, next: NextFunction
 // it to the capsule if it isn't already a member)
 router.put('/:id/board/:itemId', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const capsule = await findOwnedCapsule(req.params.id, req.user!.id);
+    if (!capsule) return res.status(404).json({ error: 'Capsule not found' });
+    const item = await findOwnedClosetItem(req.params.itemId, req.user!.id);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
     const { x, y } = req.body as { x: number; y: number };
     await prisma.capsuleItem.upsert({
       where: { capsuleId_closetItemId: { capsuleId: req.params.id, closetItemId: req.params.itemId } },
@@ -151,6 +161,9 @@ router.put('/:id/board/:itemId', async (req: Request, res: Response, next: NextF
 // (and the capsule entirely, since the board is the capsule's contents)
 router.delete('/:id/board/:itemId', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const capsule = await findOwnedCapsule(req.params.id, req.user!.id);
+    if (!capsule) return res.status(404).json({ error: 'Capsule not found' });
+
     const outfitItems = await prisma.outfitItem.findMany({
       where: { closetItemId: req.params.itemId, outfit: { capsuleId: req.params.id } },
     });
@@ -166,6 +179,9 @@ router.delete('/:id/board/:itemId', async (req: Request, res: Response, next: Ne
 // POST /api/capsules/:id/outfits — lasso a group into a named outfit
 router.post('/:id/outfits', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const capsule = await findOwnedCapsule(req.params.id, req.user!.id);
+    if (!capsule) return res.status(404).json({ error: 'Capsule not found' });
+
     const { name, itemIds } = req.body as { name: string; itemIds: string[] };
     const outfit = await prisma.outfit.create({
       data: {
@@ -186,6 +202,9 @@ export const outfitsRouter = Router();
 
 outfitsRouter.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const owned = await findOwnedOutfit(req.params.id, req.user!.id);
+    if (!owned) return res.status(404).json({ error: 'Outfit not found' });
+
     const { name } = req.body as { name: string };
     const outfit = await prisma.outfit.update({ where: { id: req.params.id }, data: { name } });
     res.json(outfit);
@@ -196,6 +215,9 @@ outfitsRouter.put('/:id', async (req: Request, res: Response, next: NextFunction
 
 outfitsRouter.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const owned = await findOwnedOutfit(req.params.id, req.user!.id);
+    if (!owned) return res.status(404).json({ error: 'Outfit not found' });
+
     await prisma.outfit.delete({ where: { id: req.params.id } });
     res.status(204).send();
   } catch (err) {
@@ -206,6 +228,11 @@ outfitsRouter.delete('/:id', async (req: Request, res: Response, next: NextFunct
 // POST /api/outfits/:id/items/:itemId — add an item to an existing outfit
 outfitsRouter.post('/:id/items/:itemId', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const outfit = await findOwnedOutfit(req.params.id, req.user!.id);
+    if (!outfit) return res.status(404).json({ error: 'Outfit not found' });
+    const item = await findOwnedClosetItem(req.params.itemId, req.user!.id);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
     await prisma.outfitItem.upsert({
       where: { outfitId_closetItemId: { outfitId: req.params.id, closetItemId: req.params.itemId } },
       update: {},
@@ -220,6 +247,9 @@ outfitsRouter.post('/:id/items/:itemId', async (req: Request, res: Response, nex
 // DELETE /api/outfits/:id/items/:itemId — drag a chip out of the group
 outfitsRouter.delete('/:id/items/:itemId', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const outfit = await findOwnedOutfit(req.params.id, req.user!.id);
+    if (!outfit) return res.status(404).json({ error: 'Outfit not found' });
+
     await prisma.outfitItem.delete({
       where: { outfitId_closetItemId: { outfitId: req.params.id, closetItemId: req.params.itemId } },
     });

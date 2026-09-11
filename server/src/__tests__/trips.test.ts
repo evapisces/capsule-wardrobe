@@ -1,16 +1,14 @@
 import request from 'supertest';
 import { createApp } from '../app';
 import prisma from '../lib/prisma';
+import { loginAs } from './helpers/auth';
 
 const app = createApp();
 const USER_ID = 'user_1';
+let authCookie: string;
 
 beforeAll(async () => {
-  await prisma.user.upsert({
-    where: { id: USER_ID },
-    update: {},
-    create: { id: USER_ID, email: 'test@capsule.local' },
-  });
+  authCookie = await loginAs(USER_ID);
 });
 
 afterAll(async () => {
@@ -23,7 +21,7 @@ beforeEach(async () => {
 
 describe('POST /api/trips', () => {
   it('creates a trip', async () => {
-    const res = await request(app).post('/api/trips').send({
+    const res = await request(app).post('/api/trips').set('Cookie', authCookie).send({
       name: 'Japan 2026',
       destination: 'Tokyo, Japan',
       startDate: '2026-10-01',
@@ -46,7 +44,7 @@ describe('GET /api/trips', () => {
         endDate: new Date('2026-06-07'),
       },
     });
-    const res = await request(app).get('/api/trips');
+    const res = await request(app).get('/api/trips').set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.length).toBeGreaterThanOrEqual(1);
   });
@@ -79,7 +77,7 @@ describe('GET /api/trips/:id', () => {
       data: { tripId: trip.id, capsuleId: capsule.id },
     });
 
-    const res = await request(app).get(`/api/trips/${trip.id}`);
+    const res = await request(app).get(`/api/trips/${trip.id}`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.capsules).toHaveLength(1);
     expect(res.body.capsules[0].items).toHaveLength(1);
@@ -98,7 +96,7 @@ describe('POST /api/trips/:id/capsules/:capsuleId', () => {
     const capsule = await prisma.capsule.create({
       data: { userId: USER_ID, name: 'Link Capsule' },
     });
-    const res = await request(app).post(`/api/trips/${trip.id}/capsules/${capsule.id}`);
+    const res = await request(app).post(`/api/trips/${trip.id}/capsules/${capsule.id}`).set('Cookie', authCookie);
     expect(res.status).toBe(201);
   });
 });
@@ -135,7 +133,7 @@ describe('packing + day strip', () => {
   });
 
   it('materializes packing rows for every item in the trip\'s capsules', async () => {
-    const res = await request(app).get(`/api/trips/${tripId}/packing`);
+    const res = await request(app).get(`/api/trips/${tripId}/packing`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].itemId).toBe(itemId);
@@ -144,13 +142,13 @@ describe('packing + day strip', () => {
   });
 
   it('toggles packed state', async () => {
-    const res = await request(app).put(`/api/trips/${tripId}/packing/${itemId}`).send({ packed: true });
+    const res = await request(app).put(`/api/trips/${tripId}/packing/${itemId}`).set('Cookie', authCookie).send({ packed: true });
     expect(res.status).toBe(200);
     expect(res.body.packed).toBe(true);
   });
 
   it('returns a day strip covering the trip range', async () => {
-    const res = await request(app).get(`/api/trips/${tripId}/days`);
+    const res = await request(app).get(`/api/trips/${tripId}/days`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(3);
     expect(res.body[0].date).toBe('2026-01-01');
@@ -159,10 +157,10 @@ describe('packing + day strip', () => {
 
   it('marks a corrected day when the user picks a different outfit', async () => {
     const outfit2 = await prisma.outfit.create({ data: { capsuleId, name: 'Alt look' } });
-    const res = await request(app).put(`/api/trips/${tripId}/days/2026-01-02`).send({ outfitId: outfit2.id });
+    const res = await request(app).put(`/api/trips/${tripId}/days/2026-01-02`).set('Cookie', authCookie).send({ outfitId: outfit2.id });
     expect(res.status).toBe(200);
 
-    const days = await request(app).get(`/api/trips/${tripId}/days`);
+    const days = await request(app).get(`/api/trips/${tripId}/days`).set('Cookie', authCookie);
     const day2 = days.body.find((d: { date: string }) => d.date === '2026-01-02');
     expect(day2.state).toBe('corrected');
     expect(day2.outfitName).toBe('Alt look');

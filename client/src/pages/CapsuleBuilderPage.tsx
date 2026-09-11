@@ -45,8 +45,9 @@ export default function CapsuleBuilderPage() {
   const [namingPopover, setNamingPopover] = useState<{ itemIds: string[]; x: number; y: number } | null>(null);
   const [outfitName, setOutfitName] = useState('');
 
-  const { data: closets = [] } = useQuery({ queryKey: ['closets'], queryFn: getClosets });
+  const { data: closets = [], isLoading: closetsLoading } = useQuery({ queryKey: ['closets'], queryFn: getClosets });
   const closetId = closets[0]?.id ?? '';
+  const noCloset = !closetsLoading && closets.length === 0;
 
   const { data: board, isLoading } = useQuery({
     queryKey: ['capsuleBoard', id],
@@ -90,6 +91,16 @@ export default function CapsuleBuilderPage() {
   const removeFromOutfitMutation = useMutation({
     mutationFn: ({ outfitId, itemId }: { outfitId: string; itemId: string }) => removeItemFromOutfit(outfitId, itemId),
   });
+
+  if (noCloset) {
+    return (
+      <div style={{ padding: '26px 28px', maxWidth: '1400px', margin: '0 auto' }}>
+        <p style={{ fontSize: '14px', color: 'var(--ink-secondary)' }}>
+          Create a closet first — <Link to="/">head back to your closet</Link> to get started.
+        </p>
+      </div>
+    );
+  }
 
   if (isLoading || !board) {
     return <p style={{ padding: '28px', color: 'var(--ink-tertiary)', fontSize: '13px' }}>Loading…</p>;

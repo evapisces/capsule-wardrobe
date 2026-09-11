@@ -118,15 +118,23 @@ cd client && npm test
 
 ## Deployment
 
+**Live app:**
+- Frontend: https://capsule-wardrobe-ilh.pages.dev
+- Backend: https://lionfish-app-s8enb.ondigitalocean.app (`GET /api/health` → `{ "ok": true }`)
+- Database: a DigitalOcean Managed Postgres cluster (`db-pgsql-nyc3-46998-do-user-35000326-0`)
+
 ### Backend → DigitalOcean App Platform
 
 1. Push the repo to GitHub.
 2. In the [DigitalOcean control panel](https://cloud.digitalocean.com/apps), click **Create App** → **Import from GitHub**.
 3. Point it at your repo; DigitalOcean will detect the `server/.do/app.yaml` spec automatically.
-4. Add the four R2 secrets (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) in the **Environment Variables** panel.
-5. Deploy — Prisma migrations run automatically in the build step.
+4. In the **Environment Variables** panel, add the four R2 secrets (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) and the Google OAuth vars (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` set to `https://<your-do-app>.ondigitalocean.app/api/auth/google/callback`, `SESSION_COOKIE_NAME`). Confirm `NODE_ENV=production` is set — it controls the session cookie's `Secure`/`SameSite=None` flags, which cross-domain sign-in depends on (see below).
+5. Register that same `GOOGLE_REDIRECT_URI` as an **Authorized redirect URI** on the OAuth Client in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) — it's an exact-match check, so the production URL needs its own entry alongside the localhost one.
+6. Deploy — Prisma migrations run automatically in the build step.
 
-**API health check:** `GET /api/health` → `{ "ok": true }`
+**Connecting to the production database:** DO Managed Postgres has no built-in web SQL console. Grab the **Public network** connection string from the cluster's Connection Details panel, make sure your current IP is listed under the cluster's **Trusted Sources** (a changed IP is the most common cause of connection timeouts), then connect with `psql "<connection-string>"` — or, if `psql` isn't installed locally, `docker run -it --rm postgres:16-alpine psql "<connection-string>"`.
+
+**Cross-domain cookies:** the client and server are deployed on different domains, so the session cookie needs `SameSite=None; Secure` for the browser to send it on cross-site `fetch` calls — that's what `NODE_ENV=production` enables in `server/src/lib/session.ts`. Local dev stays `SameSite=Lax` since `Secure` cookies aren't set over plain HTTP.
 
 ### Frontend → Cloudflare Pages
 

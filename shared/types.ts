@@ -14,6 +14,14 @@ export interface User {
   createdAt: string;
 }
 
+// The shape returned by GET /api/auth/me.
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+}
+
 export interface Closet {
   id: string;
   userId: string;

@@ -10,10 +10,22 @@ datasource db {
 model User {
   id        String    @id @default(cuid())
   email     String    @unique
+  googleId  String?   @unique
+  name      String?
+  avatarUrl String?
   createdAt DateTime  @default(now())
   closets   Closet[]
   capsules  Capsule[]
   trips     Trip[]
+  sessions  Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Closet {

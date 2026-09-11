@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import 'dotenv/config';
 import { errorHandler } from './middleware/errorHandler';
+import authRouter from './routes/auth';
 import closetsRouter from './routes/closets';
 import itemsRouter from './routes/items';
 import capsulesRouter from './routes/capsules';
@@ -12,11 +14,15 @@ import uploadRouter from './routes/upload';
 export function createApp() {
   const app = express();
 
-  app.use(cors({ origin: process.env.CLIENT_URL ?? 'http://localhost:5173' }));
+  app.use(
+    cors({ origin: process.env.CLIENT_URL ?? 'http://localhost:5173', credentials: true })
+  );
   app.use(express.json());
+  app.use(cookieParser());
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
+  app.use('/api/auth', authRouter);
   app.use('/api/closets', closetsRouter);
   app.use('/api', itemsRouter);
   app.use('/api/capsules', capsulesRouter);

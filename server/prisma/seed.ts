@@ -8,7 +8,7 @@ async function main() {
     update: {},
     create: {
       id: 'user_1',
-      email: 'eva@capsule.local',
+      email: 'em1419@cs.ship.edu',
     },
   });
 

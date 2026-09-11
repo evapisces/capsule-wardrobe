@@ -69,7 +69,20 @@ R2_ACCOUNT_ID=your_account_id
 R2_ACCESS_KEY_ID=your_access_key
 R2_SECRET_ACCESS_KEY=your_secret_key
 R2_BUCKET_NAME=capsule-wardrobe-photos
+
+# Google OAuth sign-in (see "Google OAuth setup" below)
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
+GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:3001/api/auth/google/callback
+SESSION_COOKIE_NAME=capsule_session
 ```
+
+#### Google OAuth setup
+
+1. In the [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create an **OAuth 2.0 Client ID** of type **Web application**.
+2. Add `http://localhost:3001/api/auth/google/callback` (or your `GOOGLE_REDIRECT_URI`) to **Authorized redirect URIs**.
+3. Copy the generated **Client ID** and **Client secret** into `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
+4. `SESSION_COOKIE_NAME` is the name of the httpOnly cookie the server sets after a successful sign-in — any value works locally.
 
 ### 4. Migrate and seed
 

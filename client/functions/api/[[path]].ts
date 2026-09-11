@@ -8,13 +8,26 @@ export const onRequest = async ({
   env,
 }: {
   request: Request;
-  env: { API_ORIGIN: string };
+  env: { API_ORIGIN?: string };
 }) => {
-  const url = new URL(request.url);
-  const upstream = new URL(env.API_ORIGIN);
-  upstream.pathname = url.pathname;
-  upstream.search = url.search;
+  try {
+    if (!env.API_ORIGIN) {
+      return new Response('Misconfigured proxy: API_ORIGIN is not set', { status: 500 });
+    }
 
-  const upstreamRequest = new Request(upstream.toString(), request);
-  return fetch(upstreamRequest);
+    const url = new URL(request.url);
+    const upstream = new URL(env.API_ORIGIN);
+    upstream.pathname = url.pathname;
+    upstream.search = url.search;
+
+    // The OAuth routes respond with 3xx redirects (to Google, then back to
+    // the client) that must reach the browser as-is, not be followed by
+    // this Worker itself.
+    const upstreamRequest = new Request(upstream.toString(), request);
+    return await fetch(upstreamRequest, { redirect: 'manual' });
+  } catch (err) {
+    return new Response(`Proxy error: ${err instanceof Error ? err.message : String(err)}`, {
+      status: 502,
+    });
+  }
 };

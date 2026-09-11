@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTopBarSlotContent } from '../lib/topBarSlot';
 import { useBreakpoint } from '../lib/useIsMobile';
+import { useAuth } from '../lib/auth';
 
 const DESTINATIONS: { to: string; label: string; end?: boolean }[] = [
   { to: '/', label: 'Closet', end: true },
@@ -73,6 +74,47 @@ const mobileLinkStyle = ({ isActive }: { isActive: boolean }): React.CSSProperti
   borderBottom: '1px solid var(--line-soft)',
 });
 
+const avatarStyle: React.CSSProperties = {
+  width: '28px',
+  height: '28px',
+  borderRadius: '50%',
+  objectFit: 'cover',
+};
+
+const identityNameStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: '13px',
+  color: 'var(--ink-primary)',
+  whiteSpace: 'nowrap',
+};
+
+const signOutButtonStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: '13px',
+  color: 'var(--ink-tertiary)',
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  cursor: 'pointer',
+};
+
+function UserIdentity() {
+  const { user, logout } = useAuth();
+  if (!user) return null;
+
+  const label = user.name ?? user.email;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      {user.avatarUrl && <img src={user.avatarUrl} alt="" style={avatarStyle} />}
+      <span style={identityNameStyle}>{label}</span>
+      <button type="button" onClick={() => void logout()} style={signOutButtonStyle}>
+        Sign out
+      </button>
+    </div>
+  );
+}
+
 function DesktopNav({ slotContent }: { slotContent: React.ReactNode }) {
   return (
     <nav style={navStyle}>
@@ -85,6 +127,9 @@ function DesktopNav({ slotContent }: { slotContent: React.ReactNode }) {
         ))}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>{slotContent}</div>
+      <div style={{ display: 'flex', alignItems: 'center', marginLeft: '20px' }}>
+        <UserIdentity />
+      </div>
     </nav>
   );
 }
@@ -151,6 +196,10 @@ function MobileNav({ slotContent }: { slotContent: React.ReactNode }) {
           {slotContent}
         </div>
       )}
+
+      <div style={{ display: 'flex', alignItems: 'center', width: '100%', paddingBottom: '10px' }}>
+        <UserIdentity />
+      </div>
     </nav>
   );
 }

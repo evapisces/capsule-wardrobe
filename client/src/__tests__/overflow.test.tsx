@@ -7,6 +7,7 @@ import Tooltip from '../components/Tooltip';
 import { useBreakpoint } from '../lib/useIsMobile';
 import { useTopBarActions } from '../lib/topBarSlot';
 import { installMatchMedia } from './helpers/matchMedia';
+import { StubAuthProvider } from './helpers/auth';
 
 // SCOPE: this is a *component style contract* suite, NOT a layout/overflow check.
 //
@@ -75,10 +76,12 @@ describe('NavBar picks the right layout per breakpoint (component style contract
   it('at mobile: renders the hamburger and NOT the desktop inline destination list', () => {
     mm = installMatchMedia(375);
     render(
-      <MemoryRouter>
-        <ClosetLikeSlot />
-        <NavBar />
-      </MemoryRouter>
+      <StubAuthProvider>
+        <MemoryRouter>
+          <ClosetLikeSlot />
+          <NavBar />
+        </MemoryRouter>
+      </StubAuthProvider>
     );
 
     expect(screen.getByRole('button', { name: 'Menu' })).toBeInTheDocument();
@@ -95,10 +98,12 @@ describe('NavBar picks the right layout per breakpoint (component style contract
   ])('at %ipx (%s): renders the inline destination list and NO hamburger', (px) => {
     mm = installMatchMedia(px as number);
     render(
-      <MemoryRouter>
-        <ClosetLikeSlot />
-        <NavBar />
-      </MemoryRouter>
+      <StubAuthProvider>
+        <MemoryRouter>
+          <ClosetLikeSlot />
+          <NavBar />
+        </MemoryRouter>
+      </StubAuthProvider>
     );
 
     expect(screen.queryByRole('button', { name: 'Menu' })).toBeNull();
@@ -110,10 +115,12 @@ describe('NavBar picks the right layout per breakpoint (component style contract
   it('carries no inline px width/minWidth wider than the narrowest viewport (320px), menu open or closed', () => {
     mm = installMatchMedia(320);
     const { container } = render(
-      <MemoryRouter>
-        <ClosetLikeSlot />
-        <NavBar />
-      </MemoryRouter>
+      <StubAuthProvider>
+        <MemoryRouter>
+          <ClosetLikeSlot />
+          <NavBar />
+        </MemoryRouter>
+      </StubAuthProvider>
     );
 
     expect(auditFixedWidths(container)).toEqual([]);

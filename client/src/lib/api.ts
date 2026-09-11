@@ -17,22 +17,48 @@ import type {
   PackingRow,
   PackingSuggestion,
   InsightsSummary,
+  AuthUser,
 } from '@capsule/shared';
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
 
+/** Thrown by `request`/`uploadPhoto` for any non-2xx response; carries the HTTP status
+ * so callers (in particular the auth provider) can tell a 401 apart from other errors. */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+// Notified whenever any request comes back 401, so the auth provider can flip the
+// app to the anonymous state without every call site having to check for it.
+type UnauthorizedHandler = () => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  unauthorizedHandler = handler;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
   });
   if (!res.ok) {
+    if (res.status === 401) unauthorizedHandler?.();
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error ?? res.statusText);
+    throw new ApiError(err.error ?? res.statusText, res.status);
   }
   if (res.status === 204) return undefined as T;
   return res.json();
 }
+
+// Auth
+export const getMe = () => request<AuthUser>('/auth/me');
+export const logout = () => request<void>('/auth/logout', { method: 'POST' });
 
 // Closets
 export const getClosets = () => request<Closet[]>('/closets');
@@ -87,8 +113,15 @@ export const getItemCapsules = (itemId: string) =>
 export const uploadPhoto = async (file: File): Promise<UploadResponse> => {
   const formData = new FormData();
   formData.append('photo', file);
-  const res = await fetch(`${BASE}/upload`, { method: 'POST', body: formData });
-  if (!res.ok) throw new Error('Upload failed');
+  const res = await fetch(`${BASE}/upload`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  });
+  if (!res.ok) {
+    if (res.status === 401) unauthorizedHandler?.();
+    throw new ApiError('Upload failed', res.status);
+  }
   return res.json();
 };
 

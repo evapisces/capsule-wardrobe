@@ -121,7 +121,7 @@ cd client && npm test
 **Live app:**
 - Frontend: https://capsule-wardrobe-ilh.pages.dev
 - Backend: https://lionfish-app-s8enb.ondigitalocean.app (`GET /api/health` → `{ "ok": true }`)
-- Database: a DigitalOcean Managed Postgres cluster (`db-pgsql-nyc3-46998-do-user-35000326-0`)
+- Database: a DigitalOcean Managed Postgres cluster
 
 ### Backend → DigitalOcean App Platform
 

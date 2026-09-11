@@ -9,6 +9,7 @@ import ClosetGrid from '../components/ClosetGrid';
 import StatStrip, { type Stat } from '../components/StatStrip';
 import ItemUploadForm from '../components/ItemUploadForm';
 import CreateClosetPrompt from '../components/CreateClosetPrompt';
+import DormantNudge from '../components/DormantNudge';
 import type { ClosetItem } from '@capsule/shared';
 
 type ChipFilter = 'all' | 'worn' | 'dormant' | 'hot';
@@ -163,6 +164,14 @@ export default function ClosetPage() {
       </div>
 
       {stats && <div style={{ marginBottom: '30px' }}><StatStrip stats={statCells} /></div>}
+
+      {stats && stats.dormantCount > 0 && (
+        <DormantNudge
+          items={items}
+          thresholdDays={stats.dormantThresholdDays}
+          onShowDormant={() => setChip('dormant')}
+        />
+      )}
 
       {isLoading ? (
         <p style={{ color: 'var(--ink-tertiary)', fontSize: '13px' }}>Loading…</p>

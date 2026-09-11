@@ -9,6 +9,7 @@ const DESTINATIONS: { to: string; label: string; end?: boolean }[] = [
   { to: '/capsules', label: 'Capsules' },
   { to: '/trips', label: 'Trips' },
   { to: '/insights', label: 'Insights' },
+  { to: '/history', label: 'History' },
 ];
 
 const navStyle: React.CSSProperties = {

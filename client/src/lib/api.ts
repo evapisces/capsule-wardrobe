@@ -18,6 +18,7 @@ import type {
   PackingSuggestion,
   InsightsSummary,
   AuthUser,
+  ClosetWearDay,
 } from '@capsule/shared';
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
@@ -98,6 +99,8 @@ export const getInsights = (closetId: string, range: '6m' | 'all') =>
   request<InsightsSummary>(`/closets/${closetId}/insights?range=${range}`);
 export const getItemWearHistory = (itemId: string) =>
   request<WearHistoryEntry[]>(`/items/${itemId}/wear-history`);
+export const getClosetWearHistory = (closetId: string, from: string, to: string) =>
+  request<ClosetWearDay[]>(`/closets/${closetId}/wear-history?from=${from}&to=${to}`);
 export const logItemWear = (itemId: string) =>
   request<{ wearCount: number; lastWornAt: string | null }>(`/items/${itemId}/wear`, {
     method: 'POST',

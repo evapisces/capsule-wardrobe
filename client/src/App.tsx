@@ -10,6 +10,7 @@ import CapsuleBuilderPage from './pages/CapsuleBuilderPage';
 import TripsPage from './pages/TripsPage';
 import TripDetailPage from './pages/TripDetailPage';
 import InsightsPage from './pages/InsightsPage';
+import WearHistoryPage from './pages/WearHistoryPage';
 
 export default function App() {
   const { status } = useAuth();
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/trips" element={<TripsPage />} />
           <Route path="/trips/:id" element={<TripDetailPage />} />
           <Route path="/insights" element={<InsightsPage />} />
+          <Route path="/history" element={<WearHistoryPage />} />
         </Routes>
       </main>
     </TopBarSlotProvider>

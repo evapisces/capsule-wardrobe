@@ -5,7 +5,7 @@ Client/server TypeScript monorepo.
 - `client/` — React + Vite + Vitest
 - `server/` — Express + Prisma (Postgres) + Jest + Supertest
 - `shared/` — types shared by client and server; keep in sync when changing an API contract
-- `docker-compose.yml` — local Postgres (`db` service) used by server tests
+- `docker-compose.yml` — local Postgres (`postgres` service) used by server tests
 
 ## Commands
 
@@ -15,10 +15,19 @@ Client/server TypeScript monorepo.
 | Client tests | `npm test --prefix client` |
 | Client e2e overflow tests (headless Chromium, no DB) | `npm run test:e2e:install --prefix client` once, then `npm run test:e2e --prefix client` |
 | Type-check the client e2e suite against `@capsule/shared` | `npm run test:e2e:typecheck --prefix client` |
-| Server tests | `docker compose up -d db && npm test --prefix server` |
+| Server tests | `docker compose up -d postgres && npm test --prefix server` |
 | Client build / typecheck | `npm run build --prefix client` |
 | Server build / typecheck | `npm run build --prefix server` |
 | DB migrate | `npm run db:migrate --prefix server` |
+
+## Deployment
+
+- **Client** — Cloudflare Pages, at `https://capsule-wardrobe-ilh.pages.dev`.
+- **Server** — DigitalOcean App Platform, at `https://lionfish-app-s8enb.ondigitalocean.app`. `/api/health` returns `{"ok":true}` when the deployment is up.
+- **Database** — a DigitalOcean Managed Postgres cluster (`db-pgsql-nyc3-46998-do-user-35000326-0`), accessed from outside DO via its **Public network** connection string with `sslmode=require`. It has no built-in web SQL console; connect with `psql` (or `docker run -it --rm postgres:16-alpine psql "<connection-string>"` if `psql` isn't installed locally). Only IPs (and the app itself) listed under the cluster's **Trusted Sources** can connect — a changed local IP is a common cause of connection timeouts.
+- Client and server are on **different domains**, so the session cookie must be `SameSite=None; Secure` in production for cross-site `fetch` calls to carry it (see `server/src/lib/session.ts`) — local dev stays `SameSite=Lax` since `Secure` cookies aren't set over plain HTTP.
+- `GOOGLE_REDIRECT_URI` on the server must exactly match an Authorized redirect URI registered on the OAuth Client in Google Cloud Console (Console → APIs & Services → Credentials). Local (`http://localhost:3001/...`) and production (`https://lionfish-app-s8enb.ondigitalocean.app/...`) need to each be listed separately.
+- The server's env vars (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `SESSION_COOKIE_NAME`, `CLIENT_URL`, `DATABASE_URL`, `NODE_ENV=production`) are set directly in the DO App Platform component — see `server/.env.example` for the full list. Changing them requires a redeploy/restart to take effect.
 
 ## Agent pipeline conventions
 

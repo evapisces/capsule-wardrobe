@@ -3,14 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import NavBar, { searchInputStyle } from '../components/NavBar';
 import { installMatchMedia } from './helpers/matchMedia';
+import { StubAuthProvider } from './helpers/auth';
 
 const DESTINATIONS = ['Closet', 'Capsules', 'Trips', 'Insights'];
 
 function renderNav() {
   return render(
-    <MemoryRouter>
-      <NavBar />
-    </MemoryRouter>
+    <StubAuthProvider>
+      <MemoryRouter>
+        <NavBar />
+      </MemoryRouter>
+    </StubAuthProvider>
   );
 }
 

@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import type {
+  AuthUser,
   Capsule,
   Closet,
   ClosetItem,
@@ -21,6 +22,16 @@ import type {
 
 export const CLOSET_ID = 'closet-e2e';
 export const TRIP_ID = 'trip-e2e';
+
+// The e2e overflow suite runs headless-Chromium against no real backend, so the
+// app shell needs to see an authenticated `/api/auth/me` in order to render
+// past the login screen (issue #21).
+const AUTH_USER: AuthUser = {
+  id: 'user-e2e',
+  email: 'wardrobe.owner@example.com',
+  name: 'Wardrobe Owner',
+  avatarUrl: null,
+};
 
 const CLOSET: Closet = {
   id: CLOSET_ID,
@@ -126,6 +137,7 @@ const PACKING_SUGGESTIONS: PackingSuggestion[] = [];
 const OTHER_COLLECTION: ClosetItem[] = [];
 
 type FixtureBody =
+  | AuthUser
   | Closet[]
   | ClosetItem[]
   | ClosetStats
@@ -139,6 +151,7 @@ type FixtureBody =
   | PackingSuggestion[];
 
 function bodyFor(pathAfterApi: string): FixtureBody {
+  if (pathAfterApi === '/auth/me') return AUTH_USER;
   if (pathAfterApi === '/closets') return [CLOSET];
   if (/^\/closets\/[^/]+\/items$/.test(pathAfterApi)) return CLOSET_ITEMS;
   if (/^\/closets\/[^/]+\/stats$/.test(pathAfterApi)) return STATS;

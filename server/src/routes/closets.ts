@@ -2,13 +2,13 @@ import { Router, Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { getWearStatsForItems, costPerWear, isDormant, DORMANT_THRESHOLD_DAYS } from '../lib/wearStats';
 import { getInsights, type InsightsRange } from '../lib/insights';
+import { findOwnedCloset } from '../lib/ownership';
 
 const router = Router();
-const USER_ID = 'user_1'; // hardcoded for v1; replace with req.user.id when auth added
 
-router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const closets = await prisma.closet.findMany({ where: { userId: USER_ID } });
+    const closets = await prisma.closet.findMany({ where: { userId: req.user!.id } });
     res.json(closets);
   } catch (err) {
     next(err);
@@ -19,7 +19,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, description } = req.body as { name: string; description?: string };
     const closet = await prisma.closet.create({
-      data: { userId: USER_ID, name, description: description ?? null },
+      data: { userId: req.user!.id, name, description: description ?? null },
     });
     res.status(201).json(closet);
   } catch (err) {
@@ -30,8 +30,10 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 // GET /api/closets/:id/insights — most-worn / sitting-idle / capsule efficiency
 router.get('/:id/insights', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const closet = await findOwnedCloset(req.params.id, req.user!.id);
+    if (!closet) return res.status(404).json({ error: 'Closet not found' });
     const range = (req.query.range as InsightsRange) === 'all' ? 'all' : '6m';
-    const summary = await getInsights(req.params.id, range);
+    const summary = await getInsights(closet.id, range);
     res.json(summary);
   } catch (err) {
     next(err);
@@ -41,6 +43,9 @@ router.get('/:id/insights', async (req: Request, res: Response, next: NextFuncti
 // GET /api/closets/:id/stats — the closet stat strip
 router.get('/:id/stats', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const closet = await findOwnedCloset(req.params.id, req.user!.id);
+    if (!closet) return res.status(404).json({ error: 'Closet not found' });
+
     const items = await prisma.closetItem.findMany({
       where: { closetId: req.params.id },
       select: { id: true, pricePaid: true, climate: true },
@@ -106,7 +111,7 @@ router.get('/:id/stats', async (req: Request, res: Response, next: NextFunction)
 
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const closet = await prisma.closet.findUnique({ where: { id: req.params.id } });
+    const closet = await findOwnedCloset(req.params.id, req.user!.id);
     if (!closet) return res.status(404).json({ error: 'Closet not found' });
     res.json(closet);
   } catch (err) {
@@ -116,6 +121,8 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const existing = await findOwnedCloset(req.params.id, req.user!.id);
+    if (!existing) return res.status(404).json({ error: 'Closet not found' });
     const closet = await prisma.closet.update({
       where: { id: req.params.id },
       data: req.body,
@@ -128,6 +135,8 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const existing = await findOwnedCloset(req.params.id, req.user!.id);
+    if (!existing) return res.status(404).json({ error: 'Closet not found' });
     await prisma.closet.delete({ where: { id: req.params.id } });
     res.status(204).send();
   } catch (err) {

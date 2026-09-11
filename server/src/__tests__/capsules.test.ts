@@ -1,17 +1,15 @@
 import request from 'supertest';
 import { createApp } from '../app';
 import prisma from '../lib/prisma';
+import { loginAs } from './helpers/auth';
 
 const app = createApp();
 const USER_ID = 'user_1';
 let closetId: string;
+let authCookie: string;
 
 beforeAll(async () => {
-  await prisma.user.upsert({
-    where: { id: USER_ID },
-    update: {},
-    create: { id: USER_ID, email: 'test@capsule.local' },
-  });
+  authCookie = await loginAs(USER_ID);
   const closet = await prisma.closet.create({
     data: { userId: USER_ID, name: 'Capsule Test Closet' },
   });
@@ -31,6 +29,7 @@ describe('POST /api/capsules', () => {
   it('creates a capsule', async () => {
     const res = await request(app)
       .post('/api/capsules')
+      .set('Cookie', authCookie)
       .send({ name: 'Japan Trip Essentials', description: 'Carry-on only' });
     expect(res.status).toBe(201);
     expect(res.body.name).toBe('Japan Trip Essentials');
@@ -45,7 +44,7 @@ describe('GET /api/capsules', () => {
         { userId: USER_ID, name: 'Capsule B' },
       ],
     });
-    const res = await request(app).get('/api/capsules');
+    const res = await request(app).get('/api/capsules').set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.length).toBeGreaterThanOrEqual(2);
   });
@@ -61,7 +60,7 @@ describe('GET /api/capsules — enriched fields', () => {
     });
     await prisma.capsuleItem.create({ data: { capsuleId: capsule.id, closetItemId: item.id } });
 
-    const res = await request(app).get('/api/capsules');
+    const res = await request(app).get('/api/capsules').set('Cookie', authCookie);
     const found = res.body.find((c: { id: string }) => c.id === capsule.id);
     expect(found.itemCount).toBe(1);
     expect(found.outfitCount).toBe(0);
@@ -91,7 +90,7 @@ describe('GET /api/capsules/:id', () => {
       ],
     });
 
-    const res = await request(app).get(`/api/capsules/${capsule.id}`);
+    const res = await request(app).get(`/api/capsules/${capsule.id}`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.items).toHaveLength(1);
     expect(res.body.items[0].capsuleCount).toBe(2);
@@ -106,7 +105,7 @@ describe('POST /api/capsules/:id/items/:itemId', () => {
     const item = await prisma.closetItem.create({
       data: { closetId, name: 'Add Me', category: 'shoes' },
     });
-    const res = await request(app).post(`/api/capsules/${capsule.id}/items/${item.id}`);
+    const res = await request(app).post(`/api/capsules/${capsule.id}/items/${item.id}`).set('Cookie', authCookie);
     expect(res.status).toBe(201);
     const check = await prisma.capsuleItem.findUnique({
       where: { capsuleId_closetItemId: { capsuleId: capsule.id, closetItemId: item.id } },
@@ -126,7 +125,7 @@ describe('DELETE /api/capsules/:id/items/:itemId', () => {
     await prisma.capsuleItem.create({
       data: { capsuleId: capsule.id, closetItemId: item.id },
     });
-    const res = await request(app).delete(`/api/capsules/${capsule.id}/items/${item.id}`);
+    const res = await request(app).delete(`/api/capsules/${capsule.id}/items/${item.id}`).set('Cookie', authCookie);
     expect(res.status).toBe(204);
   });
 });
@@ -134,7 +133,7 @@ describe('DELETE /api/capsules/:id/items/:itemId', () => {
 describe('POST /api/capsules/:id/archive', () => {
   it('sets archivedAt and returns the updated capsule (criterion 2)', async () => {
     const capsule = await prisma.capsule.create({ data: { userId: USER_ID, name: 'To Archive' } });
-    const res = await request(app).post(`/api/capsules/${capsule.id}/archive`);
+    const res = await request(app).post(`/api/capsules/${capsule.id}/archive`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.id).toBe(capsule.id);
     expect(res.body.archivedAt).not.toBeNull();
@@ -144,13 +143,13 @@ describe('POST /api/capsules/:id/archive', () => {
     const capsule = await prisma.capsule.create({
       data: { userId: USER_ID, name: 'Already Archived', archivedAt: new Date() },
     });
-    const res = await request(app).post(`/api/capsules/${capsule.id}/archive`);
+    const res = await request(app).post(`/api/capsules/${capsule.id}/archive`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.archivedAt).not.toBeNull();
   });
 
   it('returns 404 with { error } for an unknown id (criterion 2)', async () => {
-    const res = await request(app).post('/api/capsules/does-not-exist/archive');
+    const res = await request(app).post('/api/capsules/does-not-exist/archive').set('Cookie', authCookie);
     expect(res.status).toBe(404);
     expect(res.body.error).toBeDefined();
   });
@@ -161,7 +160,7 @@ describe('DELETE /api/capsules/:id/archive (unarchive)', () => {
     const capsule = await prisma.capsule.create({
       data: { userId: USER_ID, name: 'To Unarchive', archivedAt: new Date() },
     });
-    const res = await request(app).delete(`/api/capsules/${capsule.id}/archive`);
+    const res = await request(app).delete(`/api/capsules/${capsule.id}/archive`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.id).toBe(capsule.id);
     expect(res.body.archivedAt).toBeNull();
@@ -169,13 +168,13 @@ describe('DELETE /api/capsules/:id/archive (unarchive)', () => {
 
   it('is idempotent on an already-active capsule (criterion 3)', async () => {
     const capsule = await prisma.capsule.create({ data: { userId: USER_ID, name: 'Still Active' } });
-    const res = await request(app).delete(`/api/capsules/${capsule.id}/archive`);
+    const res = await request(app).delete(`/api/capsules/${capsule.id}/archive`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.archivedAt).toBeNull();
   });
 
   it('returns 404 for an unknown id (criterion 3)', async () => {
-    const res = await request(app).delete('/api/capsules/does-not-exist/archive');
+    const res = await request(app).delete('/api/capsules/does-not-exist/archive').set('Cookie', authCookie);
     expect(res.status).toBe(404);
     expect(res.body.error).toBeDefined();
   });
@@ -185,9 +184,9 @@ describe('GET /api/capsules — archive filtering', () => {
   it('excludes archived capsules from the default list (criterion 4)', async () => {
     const active = await prisma.capsule.create({ data: { userId: USER_ID, name: 'Active One' } });
     const archived = await prisma.capsule.create({ data: { userId: USER_ID, name: 'Archived One' } });
-    await request(app).post(`/api/capsules/${archived.id}/archive`);
+    await request(app).post(`/api/capsules/${archived.id}/archive`).set('Cookie', authCookie);
 
-    const res = await request(app).get('/api/capsules');
+    const res = await request(app).get('/api/capsules').set('Cookie', authCookie);
     expect(res.status).toBe(200);
     const ids = res.body.map((c: { id: string }) => c.id);
     expect(ids).toContain(active.id);
@@ -203,9 +202,9 @@ describe('GET /api/capsules — archive filtering', () => {
       data: { closetId, name: 'Cold Item', category: 'outerwear', climate: 'cold' },
     });
     await prisma.capsuleItem.create({ data: { capsuleId: archived.id, closetItemId: item.id } });
-    await request(app).post(`/api/capsules/${archived.id}/archive`);
+    await request(app).post(`/api/capsules/${archived.id}/archive`).set('Cookie', authCookie);
 
-    const res = await request(app).get('/api/capsules?archived=true');
+    const res = await request(app).get('/api/capsules?archived=true').set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     const found = res.body[0];
@@ -222,10 +221,10 @@ describe('GET /api/capsules — archive filtering', () => {
   it('treats absent / false / garbage archived param as the active list (criterion 5)', async () => {
     const active = await prisma.capsule.create({ data: { userId: USER_ID, name: 'Active One' } });
     const archived = await prisma.capsule.create({ data: { userId: USER_ID, name: 'Archived One' } });
-    await request(app).post(`/api/capsules/${archived.id}/archive`);
+    await request(app).post(`/api/capsules/${archived.id}/archive`).set('Cookie', authCookie);
 
     for (const qs of ['', '?archived=false', '?archived=banana']) {
-      const res = await request(app).get(`/api/capsules${qs}`);
+      const res = await request(app).get(`/api/capsules${qs}`).set('Cookie', authCookie);
       const ids = res.body.map((c: { id: string }) => c.id);
       expect(ids).toContain(active.id);
       expect(ids).not.toContain(archived.id);
@@ -236,9 +235,9 @@ describe('GET /api/capsules — archive filtering', () => {
 describe('GET /api/capsules/:id — archived capsules still resolve', () => {
   it('returns an archived capsule with archivedAt in the payload (criterion 6)', async () => {
     const capsule = await prisma.capsule.create({ data: { userId: USER_ID, name: 'Deep Linked' } });
-    await request(app).post(`/api/capsules/${capsule.id}/archive`);
+    await request(app).post(`/api/capsules/${capsule.id}/archive`).set('Cookie', authCookie);
 
-    const res = await request(app).get(`/api/capsules/${capsule.id}`);
+    const res = await request(app).get(`/api/capsules/${capsule.id}`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.id).toBe(capsule.id);
     expect(res.body.archivedAt).not.toBeNull();
@@ -262,10 +261,10 @@ describe('archive + unarchive preserves capsule data (criterion 7)', () => {
     });
     await prisma.tripCapsule.create({ data: { tripId: trip.id, capsuleId: capsule.id } });
 
-    const before = await request(app).get(`/api/capsules/${capsule.id}`);
-    await request(app).post(`/api/capsules/${capsule.id}/archive`);
-    await request(app).delete(`/api/capsules/${capsule.id}/archive`);
-    const after = await request(app).get(`/api/capsules/${capsule.id}`);
+    const before = await request(app).get(`/api/capsules/${capsule.id}`).set('Cookie', authCookie);
+    await request(app).post(`/api/capsules/${capsule.id}/archive`).set('Cookie', authCookie);
+    await request(app).delete(`/api/capsules/${capsule.id}/archive`).set('Cookie', authCookie);
+    const after = await request(app).get(`/api/capsules/${capsule.id}`).set('Cookie', authCookie);
 
     const strip = (b: Record<string, unknown>) => {
       const { archivedAt, ...rest } = b;

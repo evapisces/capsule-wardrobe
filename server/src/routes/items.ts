@@ -9,12 +9,16 @@ import {
   undoManualItemWear,
 } from '../lib/wearStats';
 import { signPhotoUrl, signPhotoUrls } from '../lib/r2';
+import { findOwnedCloset, findOwnedClosetItem } from '../lib/ownership';
 
 const router = Router();
 
 // GET /api/closets/:id/items — list items with optional filters + capsuleCount
 router.get('/closets/:id/items', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const closet = await findOwnedCloset(req.params.id, req.user!.id);
+    if (!closet) return res.status(404).json({ error: 'Closet not found' });
+
     const { category, color, climate } = req.query as {
       category?: ItemCategory;
       color?: string;
@@ -56,6 +60,9 @@ router.get('/closets/:id/items', async (req: Request, res: Response, next: NextF
 // POST /api/closets/:id/items
 router.post('/closets/:id/items', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const closet = await findOwnedCloset(req.params.id, req.user!.id);
+    if (!closet) return res.status(404).json({ error: 'Closet not found' });
+
     const item = await prisma.closetItem.create({
       data: { closetId: req.params.id, ...req.body },
     });
@@ -68,6 +75,9 @@ router.post('/closets/:id/items', async (req: Request, res: Response, next: Next
 // GET /api/items/:id
 router.get('/items/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const owned = await findOwnedClosetItem(req.params.id, req.user!.id);
+    if (!owned) return res.status(404).json({ error: 'Item not found' });
+
     const item = await prisma.closetItem.findUnique({
       where: { id: req.params.id },
       include: { _count: { select: { capsules: true } } },
@@ -92,10 +102,7 @@ router.get('/items/:id', async (req: Request, res: Response, next: NextFunction)
 // GET /api/items/:id/capsules — capsules this item belongs to, with climate match
 router.get('/items/:id/capsules', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const item = await prisma.closetItem.findUnique({
-      where: { id: req.params.id },
-      select: { climate: true },
-    });
+    const item = await findOwnedClosetItem(req.params.id, req.user!.id);
     if (!item) return res.status(404).json({ error: 'Item not found' });
 
     const links = await prisma.capsuleItem.findMany({
@@ -131,6 +138,9 @@ router.get('/items/:id/capsules', async (req: Request, res: Response, next: Next
 // GET /api/items/:id/wear-history — chronological wear events for an item
 router.get('/items/:id/wear-history', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const item = await findOwnedClosetItem(req.params.id, req.user!.id);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
     const rows = await prisma.wearEventItem.findMany({
       where: { closetItemId: req.params.id },
       include: {
@@ -159,6 +169,9 @@ router.get('/items/:id/wear-history', async (req: Request, res: Response, next: 
 // POST /api/items/:id/wear — "Wore it today"; idempotent per calendar day
 router.post('/items/:id/wear', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const item = await findOwnedClosetItem(req.params.id, req.user!.id);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
     await logManualItemWear(req.params.id);
     const stats = (await getWearStatsForItems([req.params.id])).get(req.params.id)!;
     res.status(201).json(stats);
@@ -170,6 +183,9 @@ router.post('/items/:id/wear', async (req: Request, res: Response, next: NextFun
 // DELETE /api/items/:id/wear — undo today's manual wear log
 router.delete('/items/:id/wear', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const item = await findOwnedClosetItem(req.params.id, req.user!.id);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
     const undone = await undoManualItemWear(req.params.id);
     if (!undone) return res.status(404).json({ error: 'No wear logged today for this item' });
     const stats = (await getWearStatsForItems([req.params.id])).get(req.params.id)!;
@@ -182,6 +198,9 @@ router.delete('/items/:id/wear', async (req: Request, res: Response, next: NextF
 // PUT /api/items/:id
 router.put('/items/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const owned = await findOwnedClosetItem(req.params.id, req.user!.id);
+    if (!owned) return res.status(404).json({ error: 'Item not found' });
+
     const item = await prisma.closetItem.update({
       where: { id: req.params.id },
       data: req.body,
@@ -195,6 +214,9 @@ router.put('/items/:id', async (req: Request, res: Response, next: NextFunction)
 // DELETE /api/items/:id
 router.delete('/items/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const owned = await findOwnedClosetItem(req.params.id, req.user!.id);
+    if (!owned) return res.status(404).json({ error: 'Item not found' });
+
     await prisma.closetItem.delete({ where: { id: req.params.id } });
     res.status(204).send();
   } catch (err) {

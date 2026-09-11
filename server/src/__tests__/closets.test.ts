@@ -1,16 +1,14 @@
 import request from 'supertest';
 import { createApp } from '../app';
 import prisma from '../lib/prisma';
+import { loginAs } from './helpers/auth';
 
 const app = createApp();
 const USER_ID = 'user_1';
+let authCookie: string;
 
 beforeAll(async () => {
-  await prisma.user.upsert({
-    where: { id: USER_ID },
-    update: {},
-    create: { id: USER_ID, email: 'test@capsule.local' },
-  });
+  authCookie = await loginAs(USER_ID);
 });
 
 afterAll(async () => {
@@ -26,10 +24,15 @@ describe('GET /api/closets', () => {
     await prisma.closet.create({
       data: { userId: USER_ID, name: 'Test Closet' },
     });
-    const res = await request(app).get('/api/closets');
+    const res = await request(app).get('/api/closets').set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].name).toBe('Test Closet');
+  });
+
+  it('returns 401 without a session', async () => {
+    const res = await request(app).get('/api/closets');
+    expect(res.status).toBe(401);
   });
 });
 
@@ -37,6 +40,7 @@ describe('POST /api/closets', () => {
   it('creates a closet', async () => {
     const res = await request(app)
       .post('/api/closets')
+      .set('Cookie', authCookie)
       .send({ name: 'New Closet', description: 'My wardrobe' });
     expect(res.status).toBe(201);
     expect(res.body.name).toBe('New Closet');
@@ -49,13 +53,13 @@ describe('GET /api/closets/:id', () => {
     const closet = await prisma.closet.create({
       data: { userId: USER_ID, name: 'Single' },
     });
-    const res = await request(app).get(`/api/closets/${closet.id}`);
+    const res = await request(app).get(`/api/closets/${closet.id}`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.id).toBe(closet.id);
   });
 
   it('returns 404 for missing closet', async () => {
-    const res = await request(app).get('/api/closets/nonexistent');
+    const res = await request(app).get('/api/closets/nonexistent').set('Cookie', authCookie);
     expect(res.status).toBe(404);
   });
 });
@@ -67,6 +71,7 @@ describe('PUT /api/closets/:id', () => {
     });
     const res = await request(app)
       .put(`/api/closets/${closet.id}`)
+      .set('Cookie', authCookie)
       .send({ name: 'New Name' });
     expect(res.status).toBe(200);
     expect(res.body.name).toBe('New Name');
@@ -84,9 +89,9 @@ describe('GET /api/closets/:id/stats', () => {
     await prisma.closetItem.create({
       data: { closetId: closet.id, name: 'Unworn Item', category: 'tops' },
     });
-    await request(app).post(`/api/items/${worn.id}/wear`);
+    await request(app).post(`/api/items/${worn.id}/wear`).set('Cookie', authCookie);
 
-    const res = await request(app).get(`/api/closets/${closet.id}/stats`);
+    const res = await request(app).get(`/api/closets/${closet.id}/stats`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.totalItems).toBe(2);
     expect(res.body.wornThisMonth).toBe(1);
@@ -105,12 +110,12 @@ describe('GET /api/closets/:id/insights', () => {
     const idle = await prisma.closetItem.create({
       data: { closetId: closet.id, name: 'Idle Item', category: 'tops' },
     });
-    await request(app).post(`/api/items/${worn.id}/wear`);
+    await request(app).post(`/api/items/${worn.id}/wear`).set('Cookie', authCookie);
 
     const capsule = await prisma.capsule.create({ data: { userId: USER_ID, name: 'Insights Capsule' } });
     await prisma.capsuleItem.create({ data: { capsuleId: capsule.id, closetItemId: worn.id } });
 
-    const res = await request(app).get(`/api/closets/${closet.id}/insights?range=all`);
+    const res = await request(app).get(`/api/closets/${closet.id}/insights?range=all`).set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.loggedWears).toBe(1);
     expect(res.body.mostWorn[0].itemId).toBe(worn.id);
@@ -129,7 +134,7 @@ describe('DELETE /api/closets/:id', () => {
     const closet = await prisma.closet.create({
       data: { userId: USER_ID, name: 'Delete Me' },
     });
-    const res = await request(app).delete(`/api/closets/${closet.id}`);
+    const res = await request(app).delete(`/api/closets/${closet.id}`).set('Cookie', authCookie);
     expect(res.status).toBe(204);
   });
 });

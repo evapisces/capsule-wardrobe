@@ -2,16 +2,16 @@ import { Router, Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { computeEfficiency, climateLabel, isCapsuleClimateSuitable } from '../lib/capsuleStats';
 import { signPhotoUrls } from '../lib/r2';
+import { findOwnedCapsule, findOwnedClosetItem } from '../lib/ownership';
 import type { Climate } from '@capsule/shared';
 
 const router = Router();
-const USER_ID = 'user_1';
 
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const archivedOnly = req.query.archived === 'true';
     const capsules = await prisma.capsule.findMany({
-      where: { userId: USER_ID, archivedAt: archivedOnly ? { not: null } : null },
+      where: { userId: req.user!.id, archivedAt: archivedOnly ? { not: null } : null },
       include: {
         items: { include: { closetItem: { select: { id: true, name: true, photoUrl: true, climate: true } } } },
         trips: { include: { trip: true } },
@@ -62,7 +62,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     };
     const capsule = await prisma.capsule.create({
       data: {
-        userId: USER_ID,
+        userId: req.user!.id,
         name,
         description: description ?? null,
         ...(climate ? { climate } : {}),
@@ -74,6 +74,9 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const owned = await findOwnedCapsule(req.params.id, req.user!.id);
+    if (!owned) return res.status(404).json({ error: 'Capsule not found' });
+
     const capsule = await prisma.capsule.findUnique({
       where: { id: req.params.id },
       include: {
@@ -100,6 +103,9 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const owned = await findOwnedCapsule(req.params.id, req.user!.id);
+    if (!owned) return res.status(404).json({ error: 'Capsule not found' });
+
     const capsule = await prisma.capsule.update({
       where: { id: req.params.id },
       data: req.body,
@@ -110,6 +116,9 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const owned = await findOwnedCapsule(req.params.id, req.user!.id);
+    if (!owned) return res.status(404).json({ error: 'Capsule not found' });
+
     await prisma.capsule.delete({ where: { id: req.params.id } });
     res.status(204).send();
   } catch (err) { next(err); }
@@ -119,7 +128,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
 // items, outfits or trip links. Idempotent.
 router.post('/:id/archive', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const existing = await prisma.capsule.findUnique({ where: { id: req.params.id } });
+    const existing = await findOwnedCapsule(req.params.id, req.user!.id);
     if (!existing) return res.status(404).json({ error: 'Capsule not found' });
     const capsule = await prisma.capsule.update({
       where: { id: req.params.id },
@@ -132,7 +141,7 @@ router.post('/:id/archive', async (req: Request, res: Response, next: NextFuncti
 // Unarchive: bring a capsule back into the active list. Idempotent.
 router.delete('/:id/archive', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const existing = await prisma.capsule.findUnique({ where: { id: req.params.id } });
+    const existing = await findOwnedCapsule(req.params.id, req.user!.id);
     if (!existing) return res.status(404).json({ error: 'Capsule not found' });
     const capsule = await prisma.capsule.update({
       where: { id: req.params.id },
@@ -144,6 +153,11 @@ router.delete('/:id/archive', async (req: Request, res: Response, next: NextFunc
 
 router.post('/:id/items/:itemId', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const capsule = await findOwnedCapsule(req.params.id, req.user!.id);
+    if (!capsule) return res.status(404).json({ error: 'Capsule not found' });
+    const item = await findOwnedClosetItem(req.params.itemId, req.user!.id);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
     await prisma.capsuleItem.create({
       data: { capsuleId: req.params.id, closetItemId: req.params.itemId },
     });
@@ -153,6 +167,9 @@ router.post('/:id/items/:itemId', async (req: Request, res: Response, next: Next
 
 router.delete('/:id/items/:itemId', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const capsule = await findOwnedCapsule(req.params.id, req.user!.id);
+    if (!capsule) return res.status(404).json({ error: 'Capsule not found' });
+
     await prisma.capsuleItem.delete({
       where: {
         capsuleId_closetItemId: {

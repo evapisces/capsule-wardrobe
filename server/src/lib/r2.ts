@@ -75,6 +75,18 @@ export async function getSignedReadUrl(key: string): Promise<string> {
   }
 }
 
+/** Downloads an already-uploaded object's bytes (e.g. to re-run vision suggestions on a stored photo). */
+export async function getObjectBuffer(key: string): Promise<{ buffer: Buffer; contentType: string }> {
+  try {
+    const result = await r2Client.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+    const bytes = await result.Body?.transformToByteArray();
+    if (!bytes) throw new Error('Empty object body');
+    return { buffer: Buffer.from(bytes), contentType: result.ContentType ?? 'image/jpeg' };
+  } catch (err) {
+    logAndRewrap('sign', key, err);
+  }
+}
+
 /**
  * `ClosetItem.photoUrl` stores the stable R2 object key (e.g.
  * "items/<uuid>.jpg"), not a browsable URL — signed URLs expire (1 hour),

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClosetItem, uploadPhoto, getAllCapsules, addItemToCapsule } from '../lib/api';
 import { useBreakpoint } from '../lib/useIsMobile';
+import BulkItemUpload from './BulkItemUpload';
 import type { ItemCategory, Climate } from '@capsule/shared';
 
 interface Props {
@@ -43,6 +44,8 @@ export default function ItemUploadForm({ closetId, onSuccess, onCancel }: Props)
   const footerButtonStyle: React.CSSProperties | undefined = isMobile
     ? { width: '100%', minHeight: '44px' }
     : undefined;
+
+  const [mode, setMode] = useState<'single' | 'bulk'>('single');
 
   const qc = useQueryClient();
   const [name, setName] = useState('');
@@ -96,6 +99,12 @@ export default function ItemUploadForm({ closetId, onSuccess, onCancel }: Props)
     setPhotoPreview(URL.createObjectURL(file));
   };
 
+  if (mode === 'bulk') {
+    return (
+      <BulkItemUpload closetId={closetId} onDone={onSuccess} onBack={() => setMode('single')} />
+    );
+  }
+
   return (
     <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} style={{ width: '100%', maxWidth: '880px' }}>
       <div style={{
@@ -105,7 +114,16 @@ export default function ItemUploadForm({ closetId, onSuccess, onCancel }: Props)
         <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', fontWeight: 400, color: 'var(--ink-primary)' }}>
           Add an item
         </h2>
-        <span className="eyebrow">Step 2 of 2 · Details</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setMode('bulk')}
+          >
+            Add multiple photos
+          </button>
+          <span className="eyebrow">Step 2 of 2 · Details</span>
+        </div>
       </div>
 
       <div

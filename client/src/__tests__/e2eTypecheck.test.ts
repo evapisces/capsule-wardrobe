@@ -13,6 +13,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 const clientRoot = resolve(__dirname, '../..');
 const tsc = resolve(clientRoot, 'node_modules/typescript/bin/tsc');
 const e2eTsconfig = resolve(clientRoot, 'e2e/tsconfig.json');
+const apiFixture = resolve(clientRoot, 'e2e/fixtures/api.ts');
 
 // tsc cold starts are well over the 5s default.
 const TSC_TIMEOUT = 120_000;
@@ -103,6 +104,35 @@ describe('e2e fixtures type-check against @capsule/shared (issue #15)', () => {
       expect(result.ok).toBe(false);
       expect(result.output).toMatch(/drift\.ts/);
       expect(result.output).toMatch(/autoLogEnabled|not assignable/);
+    }, TSC_TIMEOUT);
+  });
+
+  // Issue #17: the list-endpoint fixtures used to be returned as bare `[]`, so
+  // tsc checked nothing for them. Now each is a typed const
+  // (`const CLOSET_ITEMS: ClosetItem[] = []` etc.), so a mistyped element in one
+  // of those previously-unchecked fixtures must break the type-check too.
+  describe('a wrong-typed element in a previously-unchecked list fixture', () => {
+    const original = readFileSync(apiFixture, 'utf-8');
+
+    afterAll(() => {
+      writeFileSync(apiFixture, original);
+    });
+
+    it('fails tsc when a ClosetItem fixture element has a mistyped field', () => {
+      expect(original).toContain('const CLOSET_ITEMS: ClosetItem[] = [];');
+      writeFileSync(
+        apiFixture,
+        original.replace(
+          'const CLOSET_ITEMS: ClosetItem[] = [];',
+          // `category` is `ItemCategory`, never a number.
+          "const CLOSET_ITEMS: ClosetItem[] = [{ id: 'x', closetId: 'c', name: 'n', photoUrl: null, category: 99, color: null, climate: null, size: null, brand: null, notes: null, pricePaid: null, createdAt: '2024-01-01T00:00:00.000Z' }];",
+        ),
+      );
+
+      const result = runTsc(e2eTsconfig);
+      expect(result.ok).toBe(false);
+      expect(result.output).toMatch(/fixtures[/\\]api\.ts/);
+      expect(result.output).toMatch(/category|not assignable/);
     }, TSC_TIMEOUT);
   });
 });

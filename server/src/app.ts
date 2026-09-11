@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import 'dotenv/config';
 import { errorHandler } from './middleware/errorHandler';
+import { requireAuth } from './middleware/requireAuth';
 import authRouter from './routes/auth';
 import closetsRouter from './routes/closets';
 import itemsRouter from './routes/items';
@@ -23,13 +24,13 @@ export function createApp() {
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
   app.use('/api/auth', authRouter);
-  app.use('/api/closets', closetsRouter);
-  app.use('/api', itemsRouter);
-  app.use('/api/capsules', capsulesRouter);
-  app.use('/api/capsules', boardRouter);
-  app.use('/api/outfits', outfitsRouter);
-  app.use('/api/trips', tripsRouter);
-  app.use('/api/upload', uploadRouter);
+  app.use('/api/closets', requireAuth, closetsRouter);
+  app.use('/api', requireAuth, itemsRouter);
+  app.use('/api/capsules', requireAuth, capsulesRouter);
+  app.use('/api/capsules', requireAuth, boardRouter);
+  app.use('/api/outfits', requireAuth, outfitsRouter);
+  app.use('/api/trips', requireAuth, tripsRouter);
+  app.use('/api/upload', requireAuth, uploadRouter);
 
   app.use(errorHandler);
 

@@ -61,6 +61,26 @@ export interface WearHistoryEntry {
   corrected: boolean;
 }
 
+export interface ClosetWearEventItem {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+}
+
+export interface ClosetWearEvent {
+  id: string;
+  outfitName: string | null;
+  context: string | null;
+  source: WearSource;
+  corrected: boolean;
+  items: ClosetWearEventItem[];
+}
+
+export interface ClosetWearDay {
+  date: string;
+  events: ClosetWearEvent[];
+}
+
 export interface BoardItem {
   id: string;
   name: string;

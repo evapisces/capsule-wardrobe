@@ -249,6 +249,27 @@ export interface UploadResponse {
   url: string;
 }
 
+// Response shape for POST /api/items/suggest. `suggestionsAvailable: false`
+// means the vision feature is disabled (missing key/flag) — every other
+// field is undefined in that case. When enabled, a per-image failure,
+// timeout, or low-confidence result still comes back `suggestionsAvailable:
+// true` with `suggestion: null` and a human-readable `reason`, so the
+// client can flag the item for manual entry without aborting the batch.
+export interface ItemSuggestion {
+  name: string | null;
+  category: ItemCategory | null;
+  color: string | null;
+  brand: string | null;
+  climate: Climate | null;
+  confidence: number;
+}
+
+export interface ItemSuggestResponse {
+  suggestionsAvailable: boolean;
+  suggestion?: ItemSuggestion | null;
+  reason?: string;
+}
+
 export interface CapsuleSuitability {
   capsuleId: string;
   capsuleName: string;

@@ -19,6 +19,7 @@ import type {
   InsightsSummary,
   AuthUser,
   ClosetWearDay,
+  ItemSuggestResponse,
 } from '@capsule/shared';
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
@@ -124,6 +125,25 @@ export const uploadPhoto = async (file: File): Promise<UploadResponse> => {
   if (!res.ok) {
     if (res.status === 401) unauthorizedHandler?.();
     throw new ApiError('Upload failed', res.status);
+  }
+  return res.json();
+};
+
+// AI-assisted item suggestion (bulk upload confirm queue). Returns the
+// `{ suggestionsAvailable: false }` shape on a 503 (feature disabled)
+// instead of throwing, so callers can degrade to a blank manual card
+// without treating "not configured" as an error state.
+export const suggestItemMetadata = async (file: File): Promise<ItemSuggestResponse> => {
+  const formData = new FormData();
+  formData.append('photo', file);
+  const res = await fetch(`${BASE}/items/suggest`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  });
+  if (res.status === 401) {
+    unauthorizedHandler?.();
+    throw new ApiError('Not authenticated', 401);
   }
   return res.json();
 };

@@ -128,13 +128,11 @@ cd client && npm test
 1. Push the repo to GitHub.
 2. In the [DigitalOcean control panel](https://cloud.digitalocean.com/apps), click **Create App** → **Import from GitHub**.
 3. Point it at your repo; DigitalOcean will detect the `server/.do/app.yaml` spec automatically.
-4. In the **Environment Variables** panel, add the four R2 secrets (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) and the Google OAuth vars (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` set to `https://<your-do-app>.ondigitalocean.app/api/auth/google/callback`, `SESSION_COOKIE_NAME`). Confirm `NODE_ENV=production` is set — it controls the session cookie's `Secure`/`SameSite=None` flags, which cross-domain sign-in depends on (see below).
+4. In the **Environment Variables** panel, add the four R2 secrets (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) and the Google OAuth vars (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` set to `https://<your-pages-site>.pages.dev/api/auth/google/callback` — the **client's** domain, not the server's; see "Same-origin API proxy" below — and `SESSION_COOKIE_NAME`). Confirm `NODE_ENV=production` is set — it controls the session cookie's `Secure` flag.
 5. Register that same `GOOGLE_REDIRECT_URI` as an **Authorized redirect URI** on the OAuth Client in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) — it's an exact-match check, so the production URL needs its own entry alongside the localhost one.
 6. Deploy — Prisma migrations run automatically in the build step.
 
 **Connecting to the production database:** DO Managed Postgres has no built-in web SQL console. Grab the **Public network** connection string from the cluster's Connection Details panel, make sure your current IP is listed under the cluster's **Trusted Sources** (a changed IP is the most common cause of connection timeouts), then connect with `psql "<connection-string>"` — or, if `psql` isn't installed locally, `docker run -it --rm postgres:16-alpine psql "<connection-string>"`.
-
-**Cross-domain cookies:** the client and server are deployed on different domains, so the session cookie needs `SameSite=None; Secure` for the browser to send it on cross-site `fetch` calls — that's what `NODE_ENV=production` enables in `server/src/lib/session.ts`. Local dev stays `SameSite=Lax` since `Secure` cookies aren't set over plain HTTP.
 
 ### Frontend → Cloudflare Pages
 
@@ -143,11 +141,14 @@ cd client && npm test
    - **Build command:** `npm run build`
    - **Build output directory:** `dist`
    - **Root directory:** `client`
-3. Add an environment variable:
-   ```
-   VITE_API_URL=https://<your-do-app>.ondigitalocean.app
-   ```
+3. Add an environment variable for the Pages Function (see below): `API_ORIGIN=https://<your-do-app>.ondigitalocean.app`. Leave `VITE_API_URL` unset — the client calls its own origin (`/api/...`), which the proxy forwards.
 4. Deploy. The `client/public/_redirects` file handles SPA routing automatically.
+
+### Same-origin API proxy
+
+The client (Cloudflare Pages) and server (DigitalOcean) are on different domains. A plain cross-site `fetch` setup works on desktop browsers with `SameSite=None; Secure` cookies, but **iOS Safari and Chrome-on-iOS both run on WebKit and enforce Intelligent Tracking Prevention**, which can refuse to persist a cookie set via a cross-domain OAuth redirect chain — this showed up as an infinite sign-in loop on iPhone even though the same flow worked fine on desktop.
+
+The fix: `client/functions/api/[[path]].ts` is a Cloudflare Pages Function that proxies every `/api/*` request straight through to the DO backend (using the `API_ORIGIN` env var above). This makes the API look same-origin to the browser — no cross-site request happens at all, so ITP (and `SameSite` generally) stops being relevant. `GOOGLE_REDIRECT_URI` points at the **client's** `/api/auth/google/callback` (proxied through to the server) precisely so the whole OAuth round-trip stays on one origin from the browser's point of view.
 
 ---
 

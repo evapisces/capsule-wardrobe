@@ -1,9 +1,10 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { SESSION_COOKIE_NAME } from '../lib/session';
 
-// Resolves the session cookie into `req.user`, or responds 401. Exported for
-// use by resource routers; not yet applied to any router in this issue.
+// Resolves the session cookie into `req.user`, or responds 401. Applied to
+// every resource router in app.ts.
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
     const sessionId = req.cookies?.[SESSION_COOKIE_NAME] as string | undefined;

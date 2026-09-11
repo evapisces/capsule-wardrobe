@@ -26,6 +26,10 @@ jobs:
         working-directory: client
         run: npm ci
 
+      - name: Type-check the e2e suite against @capsule/shared
+        working-directory: client
+        run: npm run test:e2e:typecheck
+
       - name: Install Playwright browser
         working-directory: client
         run: npm run test:e2e:install

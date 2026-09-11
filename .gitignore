@@ -4,6 +4,10 @@ dist/
 .env.local
 *.env
 
+# Scratch dir written by client/src/__tests__/e2eTypecheck.test.ts while it
+# proves a fixture/@capsule/shared mismatch fails tsc; cleaned up in afterAll.
+client/e2e/__typecheck_probe_*/
+
 # Playwright e2e artifacts
 client/test-results/
 client/playwright-report/

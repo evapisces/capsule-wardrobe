@@ -2,9 +2,13 @@ import type { Page } from '@playwright/test';
 import type {
   Capsule,
   Closet,
+  ClosetItem,
   ClosetStats,
   InsightsSummary,
+  PackingRow,
+  PackingSuggestion,
   Trip,
+  TripDay,
   TripWeather,
 } from '@capsule/shared';
 
@@ -106,20 +110,48 @@ const INSIGHTS: InsightsSummary = {
   ],
 };
 
-function bodyFor(pathAfterApi: string): unknown {
+// List endpoints. Kept empty on purpose — the overflow suite asserts the
+// empty-state layout of these routes — but still annotated with the real
+// element type from `@capsule/shared` so `test:e2e:typecheck` catches a shape
+// drift here the same way it does for the populated fixtures above (issue #17).
+const CLOSET_ITEMS: ClosetItem[] = [];
+const TRIPS: Trip[] = [];
+const TRIP_DAYS: TripDay[] = [];
+const PACKING_ROWS: PackingRow[] = [];
+const PACKING_SUGGESTIONS: PackingSuggestion[] = [];
+
+// Fallback for any other collection an untested page might poll. Every such
+// endpoint in this app answers with a JSON array; the element type is nominal
+// (the overflow suite only cares that it's an empty, iterable payload).
+const OTHER_COLLECTION: ClosetItem[] = [];
+
+type FixtureBody =
+  | Closet[]
+  | ClosetItem[]
+  | ClosetStats
+  | InsightsSummary
+  | Capsule[]
+  | Trip[]
+  | Trip
+  | TripWeather
+  | TripDay[]
+  | PackingRow[]
+  | PackingSuggestion[];
+
+function bodyFor(pathAfterApi: string): FixtureBody {
   if (pathAfterApi === '/closets') return [CLOSET];
-  if (/^\/closets\/[^/]+\/items$/.test(pathAfterApi)) return [];
+  if (/^\/closets\/[^/]+\/items$/.test(pathAfterApi)) return CLOSET_ITEMS;
   if (/^\/closets\/[^/]+\/stats$/.test(pathAfterApi)) return STATS;
   if (/^\/closets\/[^/]+\/insights$/.test(pathAfterApi)) return INSIGHTS;
   if (pathAfterApi === '/capsules') return CAPSULES;
-  if (pathAfterApi === '/trips') return [];
+  if (pathAfterApi === '/trips') return TRIPS;
   if (/^\/trips\/[^/]+\/weather$/.test(pathAfterApi)) return WEATHER;
-  if (/^\/trips\/[^/]+\/days$/.test(pathAfterApi)) return [];
-  if (/^\/trips\/[^/]+\/packing$/.test(pathAfterApi)) return [];
-  if (/^\/trips\/[^/]+\/packing-suggestions$/.test(pathAfterApi)) return [];
+  if (/^\/trips\/[^/]+\/days$/.test(pathAfterApi)) return TRIP_DAYS;
+  if (/^\/trips\/[^/]+\/packing$/.test(pathAfterApi)) return PACKING_ROWS;
+  if (/^\/trips\/[^/]+\/packing-suggestions$/.test(pathAfterApi)) return PACKING_SUGGESTIONS;
   if (/^\/trips\/[^/]+$/.test(pathAfterApi)) return TRIP;
   // Anything else the pages might poll: an empty collection is a safe default.
-  return [];
+  return OTHER_COLLECTION;
 }
 
 export async function stubApi(

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { getClosets, getClosetStats, getInsights } from '../lib/api';
 import StatStrip, { type Stat } from '../components/StatStrip';
 import { useBreakpoint } from '../lib/useIsMobile';
@@ -24,8 +25,9 @@ export default function InsightsPage() {
   const isMobile = breakpoint === 'mobile';
   const pagePadding = isMobile ? '16px' : breakpoint === 'tablet' ? '20px' : '28px';
 
-  const { data: closets = [] } = useQuery({ queryKey: ['closets'], queryFn: getClosets });
+  const { data: closets = [], isLoading: closetsLoading } = useQuery({ queryKey: ['closets'], queryFn: getClosets });
   const closetId = closets[0]?.id ?? '';
+  const noCloset = !closetsLoading && closets.length === 0;
 
   const { data: stats } = useQuery({
     queryKey: ['closetStats', closetId],
@@ -49,6 +51,16 @@ export default function InsightsPage() {
     : [];
 
   const maxWorn = insights?.mostWorn[0]?.wearCount ?? 1;
+
+  if (noCloset) {
+    return (
+      <div style={{ padding: pagePadding, maxWidth: '1280px', margin: '0 auto' }}>
+        <p style={{ fontSize: '14px', color: 'var(--ink-secondary)' }}>
+          Create a closet first — <Link to="/">head back to your closet</Link> to get started.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: pagePadding, maxWidth: '1280px', margin: '0 auto' }}>

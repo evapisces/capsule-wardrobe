@@ -8,6 +8,7 @@ import { useBreakpoint } from '../lib/useIsMobile';
 import ClosetGrid from '../components/ClosetGrid';
 import StatStrip, { type Stat } from '../components/StatStrip';
 import ItemUploadForm from '../components/ItemUploadForm';
+import CreateClosetPrompt from '../components/CreateClosetPrompt';
 import type { ClosetItem } from '@capsule/shared';
 
 type ChipFilter = 'all' | 'worn' | 'dormant' | 'hot';
@@ -39,8 +40,10 @@ export default function ClosetPage() {
   const [search, setSearch] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const { data: closets = [] } = useQuery({ queryKey: ['closets'], queryFn: getClosets });
+  const { data: closets = [], isLoading: closetsLoading } = useQuery({ queryKey: ['closets'], queryFn: getClosets });
   const closetId = closets[0]?.id ?? '';
+  const hasCloset = !closetsLoading && closets.length > 0;
+  const showOnboarding = !closetsLoading && closets.length === 0;
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['closetItems', closetId],
@@ -58,16 +61,18 @@ export default function ClosetPage() {
   const { data: capsules = [] } = useQuery({ queryKey: ['capsules', 'all'], queryFn: getAllCapsules });
 
   useTopBarActions(
-    <>
-      <input
-        style={searchInputStyle}
-        placeholder="Search your closet"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        aria-label="Search your closet"
-      />
-      <button className="btn-primary" onClick={() => setShowAddForm(true)}>Add item</button>
-    </>
+    hasCloset ? (
+      <>
+        <input
+          style={searchInputStyle}
+          placeholder="Search your closet"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search your closet"
+        />
+        <button className="btn-primary" onClick={() => setShowAddForm(true)}>Add item</button>
+      </>
+    ) : null
   );
 
   const handleItemClick = (item: ClosetItem) => navigate(`/items/${item.id}`);
@@ -96,6 +101,22 @@ export default function ClosetPage() {
         },
       ]
     : [];
+
+  if (closetsLoading) {
+    return (
+      <div style={{ padding: pagePadding, maxWidth: '1280px', margin: '0 auto' }}>
+        <p style={{ color: 'var(--ink-tertiary)', fontSize: '13px' }}>Loading…</p>
+      </div>
+    );
+  }
+
+  if (showOnboarding) {
+    return (
+      <div style={{ padding: pagePadding, maxWidth: '1280px', margin: '0 auto' }}>
+        <CreateClosetPrompt />
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: pagePadding, maxWidth: '1280px', margin: '0 auto' }}>

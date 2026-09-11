@@ -8,14 +8,21 @@ import { useBreakpoint } from '../lib/useIsMobile';
 import { useTopBarActions } from '../lib/topBarSlot';
 import { installMatchMedia } from './helpers/matchMedia';
 
-// jsdom runs no layout, so we cannot measure `document.documentElement.scrollWidth`
-// vs `.clientWidth` the way a real browser does (see the PR "How to test" for the
-// manual reproduction). The CI-enforceable proxies for AC 9 are:
-//   1. NavBar renders the mobile (hamburger) layout below 768px, so the wide
-//      non-wrapping desktop row can never be shown on a phone.
-//   2. No shell component carries an inline px `width` / `minWidth` wider than the
-//      narrowest supported viewport (320px) — the exact class of bug that the
+// SCOPE: this is a *component style contract* suite, NOT a layout/overflow check.
+//
+// jsdom runs no layout, so it cannot measure `document.documentElement.scrollWidth`
+// vs `.clientWidth` — the real "no horizontal overflow at 320/375/390/768" criterion
+// from #3–#6. That is now covered for real by the headless-Chromium suite in
+// `client/e2e/overflow.e2e.ts` (`npm run test:e2e --prefix client`); see issue #13.
+//
+// What THIS file still guards (fast, runner-local, and genuinely load-bearing):
+//   1. NavBar picks the mobile (hamburger) layout below 768px, so the wide
+//      non-wrapping desktop row can never be mounted on a phone in the first place.
+//   2. No shell component hard-codes an inline px `width` / `minWidth` wider than
+//      the narrowest supported viewport (320px) — the exact class of bug that the
 //      pre-fix `searchInputStyle.width = '220px'` belonged to.
+//   3. `useBreakpoint` re-derives from a live read on every viewport change.
+// None of these prove "the page does not overflow"; that assertion lives in the e2e suite.
 
 /** Narrowest viewport this project supports; nothing fixed may exceed it. */
 const NARROWEST_TARGET = 320;
@@ -57,7 +64,7 @@ const STATS = [
   { key: 'Trips', value: '3', sub: 'planned' },
 ];
 
-describe('NavBar picks the right layout per breakpoint (AC 6-9 CI proxy)', () => {
+describe('NavBar picks the right layout per breakpoint (component style contract, not layout)', () => {
   let mm: ReturnType<typeof installMatchMedia>;
 
   afterEach(() => {
@@ -116,7 +123,7 @@ describe('NavBar picks the right layout per breakpoint (AC 6-9 CI proxy)', () =>
   });
 });
 
-describe('searchInputStyle is fluid, not a fixed 220px (AC 7)', () => {
+describe('searchInputStyle is fluid, not a fixed 220px (component style contract, not layout)', () => {
   it('uses a percentage width capped by maxWidth, with no fixed px width', () => {
     // Pre-fix this object was `{ ...styles, width: '220px' }` with no maxWidth —
     // that would fail every assertion below.

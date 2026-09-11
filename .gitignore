@@ -4,6 +4,12 @@ dist/
 .env.local
 *.env
 
+# Playwright e2e artifacts
+client/test-results/
+client/playwright-report/
+client/blob-report/
+client/.playwright/
+
 # Compiled JS output from tsc — the real sources are .ts/.tsx. These shadow the
 # TS sources under Vite/Vitest resolution and must not be tracked. The client now
 # type-checks with `tsc --noEmit`, so these should never be produced; kept as a

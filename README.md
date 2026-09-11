@@ -75,6 +75,11 @@ GOOGLE_CLIENT_ID=your_google_oauth_client_id
 GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
 GOOGLE_REDIRECT_URI=http://localhost:3001/api/auth/google/callback
 SESSION_COOKIE_NAME=capsule_session
+
+# AI-assisted bulk item upload (optional — see "AI-assisted bulk upload" below)
+VISION_API_KEY=your_vision_provider_api_key
+VISION_MODEL=gpt-4o-mini
+VISION_SUGGESTIONS_ENABLED=false
 ```
 
 #### Google OAuth setup
@@ -83,6 +88,22 @@ SESSION_COOKIE_NAME=capsule_session
 2. Add `http://localhost:3001/api/auth/google/callback` (or your `GOOGLE_REDIRECT_URI`) to **Authorized redirect URIs**.
 3. Copy the generated **Client ID** and **Client secret** into `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
 4. `SESSION_COOKIE_NAME` is the name of the httpOnly cookie the server sets after a successful sign-in — any value works locally.
+
+#### AI-assisted bulk upload
+
+The "Add multiple photos" flow (inside the add-item modal) can call a vision
+model to pre-fill `name`/`category`/`color`/`brand`/`climate` guesses for each
+photo, which the user then confirms or corrects — nothing is ever saved
+without an explicit confirm. It's controlled by three env vars:
+
+- `VISION_API_KEY` — API key for the vision provider (never sent to the client; read server-side only).
+- `VISION_MODEL` — model identifier to use (e.g. `gpt-4o-mini`).
+- `VISION_SUGGESTIONS_ENABLED` — must be `true` to turn the feature on.
+
+Leave `VISION_SUGGESTIONS_ENABLED=false` (or `VISION_API_KEY` blank) to skip
+this entirely — `POST /api/items/suggest` returns `503 { suggestionsAvailable:
+false }`, the bulk queue's cards fall back to blank manual-entry fields, and
+the rest of the app (including the single-item add flow) is unaffected.
 
 ### 4. Migrate and seed
 

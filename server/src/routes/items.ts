@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 import prisma from '../lib/prisma';
 import { ItemCategory, Climate } from '@capsule/shared';
 import {
@@ -8,10 +9,12 @@ import {
   logManualItemWear,
   undoManualItemWear,
 } from '../lib/wearStats';
-import { signPhotoUrl, signPhotoUrls } from '../lib/r2';
+import { signPhotoUrl, signPhotoUrls, getObjectBuffer } from '../lib/r2';
 import { findOwnedCloset, findOwnedClosetItem } from '../lib/ownership';
+import { isVisionSuggestionsEnabled, suggestItemMetadata } from '../lib/visionSuggest';
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // GET /api/closets/:id/items — list items with optional filters + capsuleCount
 router.get('/closets/:id/items', async (req: Request, res: Response, next: NextFunction) => {
@@ -71,6 +74,46 @@ router.post('/closets/:id/items', async (req: Request, res: Response, next: Next
     next(err);
   }
 });
+
+// POST /api/items/suggest — run an uploaded (or already-uploaded, via `key`) photo through
+// the vision model to pre-fill name/category/color/brand/climate for the bulk-upload confirm
+// queue. Never writes to the database; the client still must call POST /closets/:id/items
+// to actually create anything.
+router.post(
+  '/items/suggest',
+  upload.single('photo'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!isVisionSuggestionsEnabled()) {
+        return res.status(503).json({
+          error: 'AI suggestions are not configured on this server',
+          suggestionsAvailable: false,
+        });
+      }
+
+      let buffer: Buffer;
+      let contentType: string;
+      if (req.file) {
+        buffer = req.file.buffer;
+        contentType = req.file.mimetype;
+      } else if (typeof req.body?.key === 'string' && req.body.key) {
+        const object = await getObjectBuffer(req.body.key);
+        buffer = object.buffer;
+        contentType = object.contentType;
+      } else {
+        return res.status(400).json({ error: 'Provide a photo file or an uploaded key' });
+      }
+
+      const result = await suggestItemMetadata(buffer, contentType);
+      if (!result.suggestion) {
+        return res.json({ suggestionsAvailable: true, suggestion: null, reason: result.reason });
+      }
+      res.json({ suggestionsAvailable: true, suggestion: result.suggestion });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // GET /api/items/:id
 router.get('/items/:id', async (req: Request, res: Response, next: NextFunction) => {

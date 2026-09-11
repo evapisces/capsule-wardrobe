@@ -3,10 +3,12 @@
 A personal clothing closet manager and travel capsule wardrobe builder.
 
 **Features**
-- Photo upload for every clothing item (stored on Cloudflare R2)
+- Google sign-in — every user's closets, capsules, and trips are private to them
+- Photo upload for every clothing item (stored on Cloudflare R2), including AI-assisted bulk upload that pre-fills category/color/brand from the photo for you to confirm
 - Filter your closet by category, color, and climate
 - Build named capsule wardrobes by picking items from your closet
-- Create trips and link capsules to them
+- Create trips and link capsules to them, with weather-aware climate suggestions
+- Wear tracking with a history calendar, cost-per-wear, and dormant-item nudges
 - Fully responsive — works great on mobile too
 
 ---
@@ -186,16 +188,17 @@ capsule-wardrobe/
 ├── server/
 │   ├── prisma/        # schema.prisma, migrations, seed.ts
 │   ├── src/
-│   │   ├── routes/    # closets, items, capsules, trips, upload
-│   │   ├── lib/       # prisma singleton, R2 helpers
-│   │   ├── middleware/ # error handler
+│   │   ├── routes/    # auth, closets, items, capsules, trips, upload
+│   │   ├── lib/       # prisma singleton, R2 helpers, Google OAuth, weather, vision-suggest
+│   │   ├── middleware/ # error handler, requireAuth
 │   │   └── __tests__/ # Jest + Supertest tests
 │   └── .do/app.yaml   # DigitalOcean App Platform spec
 ├── client/
+│   ├── functions/     # Cloudflare Pages Function — proxies /api/* to the DO backend
 │   ├── public/        # _redirects for Cloudflare Pages
 │   └── src/
-│       ├── components/ # NavBar, ItemCard, CapsuleTray, FilterBar, BottomSheet, …
-│       ├── pages/     # ClosetPage, CapsuleBuilderPage, TripsPage, TripDetailPage, …
-│       └── lib/       # api.ts, queryClient.ts
+│       ├── components/ # NavBar, ItemCard, CapsuleTray, FilterBar, BottomSheet, BulkItemUpload, DormantNudge, …
+│       ├── pages/     # LoginPage, ClosetPage, CapsuleBuilderPage, TripsPage, TripDetailPage, InsightsPage, WearHistoryPage, …
+│       └── lib/       # api.ts, auth.tsx, queryClient.ts
 └── docker-compose.yml
 ```

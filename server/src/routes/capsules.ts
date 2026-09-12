@@ -158,8 +158,14 @@ router.post('/:id/items/:itemId', async (req: Request, res: Response, next: Next
     const item = await findOwnedClosetItem(req.params.itemId, req.user!.id);
     if (!item) return res.status(404).json({ error: 'Item not found' });
 
-    await prisma.capsuleItem.create({
-      data: { capsuleId: req.params.id, closetItemId: req.params.itemId },
+    // Idempotent: re-adding an item that's already a member should succeed
+    // as a no-op rather than surfacing Prisma's P2002 unique-constraint error.
+    await prisma.capsuleItem.upsert({
+      where: {
+        capsuleId_closetItemId: { capsuleId: req.params.id, closetItemId: req.params.itemId },
+      },
+      create: { capsuleId: req.params.id, closetItemId: req.params.itemId },
+      update: {},
     });
     res.status(201).json({ ok: true });
   } catch (err) { next(err); }

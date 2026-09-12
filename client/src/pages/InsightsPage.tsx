@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { getClosets, getClosetStats, getInsights } from '../lib/api';
+import { getClosets, getClosetStats, getInsights, addItemToCapsule } from '../lib/api';
 import StatStrip, { type Stat } from '../components/StatStrip';
 import { useBreakpoint } from '../lib/useIsMobile';
 
@@ -39,6 +39,24 @@ export default function InsightsPage() {
     queryKey: ['insights', closetId, range],
     queryFn: () => getInsights(closetId, range),
     enabled: !!closetId,
+  });
+
+  const qc = useQueryClient();
+  const [addedItemIds, setAddedItemIds] = useState<Set<string>>(new Set());
+  const [errorItemId, setErrorItemId] = useState<string | null>(null);
+  const addToCapsuleMutation = useMutation({
+    mutationFn: ({ capsuleId, itemId }: { capsuleId: string; itemId: string }) =>
+      addItemToCapsule(capsuleId, itemId),
+    onMutate: ({ itemId }) => {
+      setErrorItemId((prev) => (prev === itemId ? null : prev));
+    },
+    onSuccess: (_data, { itemId }) => {
+      setAddedItemIds((prev) => new Set(prev).add(itemId));
+      qc.invalidateQueries({ queryKey: ['insights', closetId, range] });
+    },
+    onError: (_err, { itemId }) => {
+      setErrorItemId(itemId);
+    },
   });
 
   const statCells: Stat[] = stats
@@ -124,25 +142,67 @@ export default function InsightsPage() {
             {(insights?.sittingIdle.length ?? 0) === 0 ? (
               <p style={{ padding: '16px', fontSize: '12.5px', color: 'var(--ink-tertiary)' }}>Nothing sitting idle right now.</p>
             ) : (
-              insights!.sittingIdle.map((row, i) => (
-                <div key={row.itemId} style={{
-                  display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px',
-                  borderTop: i === 0 ? 'none' : '1px solid var(--line-hairline)',
-                }}>
-                  <div style={{
-                    width: '40px', height: '48px', borderRadius: '6px', flexShrink: 0,
-                    border: '1px solid var(--line-strong)',
-                    background: row.photoUrl ? `center/cover no-repeat url(${row.photoUrl})` : 'repeating-linear-gradient(135deg, #EDE9E1 0 7px, #F6F3ED 7px 14px)',
-                  }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--ink-primary)' }}>{row.name}</div>
-                    <div style={{ fontSize: '12.5px', color: 'var(--accent-amber)' }}>{row.reason}</div>
+              insights!.sittingIdle.map((row, i) => {
+                const buttonStyle = { minHeight: isMobile ? '44px' : '30px', height: isMobile ? undefined : '30px', padding: '0 12px', fontSize: '12px', flexShrink: 0 } as const;
+                const added = addedItemIds.has(row.itemId);
+                const isPending = addToCapsuleMutation.isPending && addToCapsuleMutation.variables?.itemId === row.itemId;
+                const hasError = errorItemId === row.itemId;
+
+                let actionNode;
+                if (row.action.kind === 'suggest-outfit') {
+                  actionNode = (
+                    <button
+                      className="btn-secondary"
+                      style={buttonStyle}
+                      disabled
+                      title="Outfit suggestions aren't available yet"
+                    >
+                      {row.actionLabel}
+                    </button>
+                  );
+                } else if (added) {
+                  actionNode = (
+                    <span style={{ ...buttonStyle, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-green)', fontSize: '12px' }}>
+                      Added to {row.action.capsuleName}
+                    </span>
+                  );
+                } else {
+                  const { capsuleId, capsuleName } = row.action;
+                  actionNode = (
+                    <button
+                      className="btn-secondary"
+                      style={buttonStyle}
+                      disabled={isPending}
+                      onClick={() => addToCapsuleMutation.mutate({ capsuleId, itemId: row.itemId })}
+                    >
+                      {isPending ? 'Adding…' : hasError ? 'Retry' : row.actionLabel}
+                    </button>
+                  );
+                }
+
+                return (
+                  <div key={row.itemId} style={{
+                    display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px',
+                    borderTop: i === 0 ? 'none' : '1px solid var(--line-hairline)',
+                  }}>
+                    <div style={{
+                      width: '40px', height: '48px', borderRadius: '6px', flexShrink: 0,
+                      border: '1px solid var(--line-strong)',
+                      background: row.photoUrl ? `center/cover no-repeat url(${row.photoUrl})` : 'repeating-linear-gradient(135deg, #EDE9E1 0 7px, #F6F3ED 7px 14px)',
+                    }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--ink-primary)' }}>{row.name}</div>
+                      <div style={{ fontSize: '12.5px', color: 'var(--accent-amber)' }}>{row.reason}</div>
+                      {hasError && !added && (
+                        <div style={{ fontSize: '11.5px', color: '#B3261E', marginTop: '2px' }}>
+                          Couldn&apos;t add — try again.
+                        </div>
+                      )}
+                    </div>
+                    {actionNode}
                   </div>
-                  <button className="btn-secondary" style={{ minHeight: isMobile ? '44px' : '30px', height: isMobile ? undefined : '30px', padding: '0 12px', fontSize: '12px', flexShrink: 0 }}>
-                    {row.actionLabel}
-                  </button>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 

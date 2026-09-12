@@ -13,12 +13,17 @@ export interface MostWornRow {
   costPerWear: number | null;
 }
 
+export type SittingIdleAction =
+  | { kind: 'add-to-capsule'; capsuleId: string; capsuleName: string }
+  | { kind: 'suggest-outfit' };
+
 export interface SittingIdleRow {
   itemId: string;
   name: string;
   photoUrl: string | null;
   reason: string;
   actionLabel: string;
+  action: SittingIdleAction;
 }
 
 export interface CapsuleEfficiencyRow {
@@ -111,7 +116,9 @@ export async function getInsights(closetId: string, range: InsightsRange): Promi
     where: { userId: closet.userId, kind: 'standing' },
     select: { id: true, name: true, climate: true },
   });
-  const capsuleForClimate = new Map(standingCapsules.filter((c) => c.climate).map((c) => [c.climate, c.name]));
+  const capsuleForClimate = new Map(
+    standingCapsules.filter((c) => c.climate).map((c) => [c.climate, { id: c.id, name: c.name }])
+  );
 
   const sittingIdle: SittingIdleRow[] = items
     .filter((item) => isDormant(allTimeLastWorn.get(item.id) ?? null))
@@ -123,8 +130,11 @@ export async function getInsights(closetId: string, range: InsightsRange): Promi
         ? `Never worn · added ${new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
         : `Not worn in ${Math.floor((Date.now() - new Date(lastWorn).getTime()) / 86400000)} days${cpw != null ? ` · $${cpw.toFixed(0)}/wear` : ''}`;
       const matchingCapsule = item.climate ? capsuleForClimate.get(item.climate) : undefined;
-      const actionLabel = matchingCapsule ? `Add to ${matchingCapsule}` : 'Suggest an outfit';
-      return { itemId: item.id, name: item.name, photoUrl: item.photoUrl, reason, actionLabel };
+      const actionLabel = matchingCapsule ? `Add to ${matchingCapsule.name}` : 'Suggest an outfit';
+      const action: SittingIdleAction = matchingCapsule
+        ? { kind: 'add-to-capsule', capsuleId: matchingCapsule.id, capsuleName: matchingCapsule.name }
+        : { kind: 'suggest-outfit' };
+      return { itemId: item.id, name: item.name, photoUrl: item.photoUrl, reason, actionLabel, action };
     })
     .sort((a, b) => (allTimeWearCount.get(a.itemId) ?? 0) - (allTimeWearCount.get(b.itemId) ?? 0))
     .slice(0, 6);

@@ -194,6 +194,26 @@ export interface InsightsSummary {
   capsuleEfficiency: CapsuleEfficiencyRow[];
 }
 
+export interface OutfitSuggestionItem {
+  itemId: string;
+  name: string;
+  photoUrl: string | null;
+  category: ItemCategory;
+  climate: Climate | null;
+  reason: string;
+}
+
+export interface OutfitSuggestion {
+  seed: {
+    itemId: string;
+    name: string;
+    photoUrl: string | null;
+    category: ItemCategory;
+    climate: Climate | null;
+  };
+  suggestions: OutfitSuggestionItem[];
+}
+
 export interface ClosetStats {
   wornThisMonth: number;
   totalItems: number;

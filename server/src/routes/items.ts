@@ -12,6 +12,7 @@ import {
 import { signPhotoUrl, signPhotoUrls, getObjectBuffer } from '../lib/r2';
 import { findOwnedCloset, findOwnedClosetItem } from '../lib/ownership';
 import { isVisionSuggestionsEnabled, suggestItemMetadata } from '../lib/visionSuggest';
+import { suggestOutfitItems } from '../lib/outfitSuggest';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -173,6 +174,75 @@ router.get('/items/:id/capsules', async (req: Request, res: Response, next: Next
         };
       })
     );
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/items/:id/outfit-suggestion — rule-based complementary items for
+// a dormant item (issue #33). Always 200 (even when the closet is too
+// sparse to suggest anything) — an empty `suggestions` array is a valid
+// answer, not an error.
+router.get('/items/:id/outfit-suggestion', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const seedItem = await findOwnedClosetItem(req.params.id, req.user!.id);
+    if (!seedItem) return res.status(404).json({ error: 'Item not found' });
+
+    const closetItems = await prisma.closetItem.findMany({ where: { closetId: seedItem.closetId } });
+    const wearStats = await getWearStatsForItems(closetItems.map((i) => i.id));
+
+    const outfitGroups = await prisma.outfitItem.findMany({
+      where: { closetItem: { closetId: seedItem.closetId } },
+      select: { outfitId: true, closetItemId: true },
+    });
+    const itemIdsByOutfit = new Map<string, string[]>();
+    for (const row of outfitGroups) {
+      const list = itemIdsByOutfit.get(row.outfitId) ?? [];
+      list.push(row.closetItemId);
+      itemIdsByOutfit.set(row.outfitId, list);
+    }
+
+    const ranked = suggestOutfitItems(
+      {
+        id: seedItem.id,
+        category: seedItem.category,
+        climate: seedItem.climate,
+        wearCount: wearStats.get(seedItem.id)?.wearCount ?? 0,
+      },
+      closetItems.map((item) => ({
+        id: item.id,
+        category: item.category,
+        climate: item.climate,
+        wearCount: wearStats.get(item.id)?.wearCount ?? 0,
+      })),
+      [...itemIdsByOutfit.values()].map((itemIds) => ({ itemIds }))
+    );
+
+    const itemsById = new Map(closetItems.map((item) => [item.id, item]));
+    const suggestions = await signPhotoUrls(
+      ranked.map((r) => {
+        const item = itemsById.get(r.itemId)!;
+        return {
+          itemId: item.id,
+          name: item.name,
+          photoUrl: item.photoUrl,
+          category: item.category,
+          climate: item.climate,
+          reason: r.reason,
+        };
+      })
+    );
+
+    res.json({
+      seed: {
+        itemId: seedItem.id,
+        name: seedItem.name,
+        photoUrl: await signPhotoUrl(seedItem.photoUrl),
+        category: seedItem.category,
+        climate: seedItem.climate,
+      },
+      suggestions,
+    });
   } catch (err) {
     next(err);
   }

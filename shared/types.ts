@@ -167,12 +167,17 @@ export interface MostWornRow {
   costPerWear: number | null;
 }
 
+export type SittingIdleAction =
+  | { kind: 'add-to-capsule'; capsuleId: string; capsuleName: string }
+  | { kind: 'suggest-outfit' };
+
 export interface SittingIdleRow {
   itemId: string;
   name: string;
   photoUrl: string | null;
   reason: string;
   actionLabel: string;
+  action: SittingIdleAction;
 }
 
 export interface CapsuleEfficiencyRow {

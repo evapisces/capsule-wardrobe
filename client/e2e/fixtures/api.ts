@@ -113,6 +113,7 @@ const INSIGHTS: InsightsSummary = {
       photoUrl: null,
       reason: 'Not worn in 240 days',
       actionLabel: 'Plan a wear',
+      action: { kind: 'suggest-outfit' },
     },
   ],
   capsuleEfficiency: [

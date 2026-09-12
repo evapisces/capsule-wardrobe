@@ -112,6 +112,23 @@ describe('POST /api/capsules/:id/items/:itemId', () => {
     });
     expect(check).not.toBeNull();
   });
+
+  it('is idempotent — re-adding the same item does not 500', async () => {
+    const capsule = await prisma.capsule.create({
+      data: { userId: USER_ID, name: 'Idempotent Capsule' },
+    });
+    const item = await prisma.closetItem.create({
+      data: { closetId, name: 'Add Twice', category: 'shoes' },
+    });
+    const first = await request(app).post(`/api/capsules/${capsule.id}/items/${item.id}`).set('Cookie', authCookie);
+    expect(first.status).toBe(201);
+    const second = await request(app).post(`/api/capsules/${capsule.id}/items/${item.id}`).set('Cookie', authCookie);
+    expect(second.status).toBe(201);
+    const memberships = await prisma.capsuleItem.findMany({
+      where: { capsuleId: capsule.id, closetItemId: item.id },
+    });
+    expect(memberships).toHaveLength(1);
+  });
 });
 
 describe('DELETE /api/capsules/:id/items/:itemId', () => {

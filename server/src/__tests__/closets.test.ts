@@ -127,6 +127,39 @@ describe('GET /api/closets/:id/insights', () => {
     await prisma.closetItem.deleteMany({ where: { closetId: closet.id } });
     await prisma.closet.delete({ where: { id: closet.id } });
   });
+
+  it('gives sitting-idle rows a machine-readable action', async () => {
+    const closet = await prisma.closet.create({ data: { userId: USER_ID, name: 'Action Closet' } });
+    const matched = await prisma.closetItem.create({
+      data: { closetId: closet.id, name: 'Cold Idle Item', category: 'tops', climate: 'cold' },
+    });
+    const unmatched = await prisma.closetItem.create({
+      data: { closetId: closet.id, name: 'No Match Idle Item', category: 'tops', climate: 'tropical' },
+    });
+
+    const standingCapsule = await prisma.capsule.create({
+      data: { userId: USER_ID, name: 'Cold Weather Capsule', kind: 'standing', climate: 'cold' },
+    });
+
+    const res = await request(app).get(`/api/closets/${closet.id}/insights?range=all`).set('Cookie', authCookie);
+    expect(res.status).toBe(200);
+
+    const matchedRow = res.body.sittingIdle.find((r: { itemId: string }) => r.itemId === matched.id);
+    expect(matchedRow.actionLabel).toBe(`Add to ${standingCapsule.name}`);
+    expect(matchedRow.action).toEqual({
+      kind: 'add-to-capsule',
+      capsuleId: standingCapsule.id,
+      capsuleName: standingCapsule.name,
+    });
+
+    const unmatchedRow = res.body.sittingIdle.find((r: { itemId: string }) => r.itemId === unmatched.id);
+    expect(unmatchedRow.actionLabel).toBe('Suggest an outfit');
+    expect(unmatchedRow.action).toEqual({ kind: 'suggest-outfit' });
+
+    await prisma.capsule.delete({ where: { id: standingCapsule.id } });
+    await prisma.closetItem.deleteMany({ where: { closetId: closet.id } });
+    await prisma.closet.delete({ where: { id: closet.id } });
+  });
 });
 
 describe('DELETE /api/closets/:id', () => {

@@ -43,7 +43,7 @@ const insights: InsightsSummary = {
   loggedWears: 12,
   unloggedDays: 3,
   mostWorn: [{ itemId: 'm1', name: 'Grey Tee', photoUrl: null, wearCount: 6, costPerWear: 2 }],
-  sittingIdle: [{ itemId: 's1', name: 'Wool Coat', photoUrl: null, reason: 'Not worn in 120 days', actionLabel: 'Plan a wear' }],
+  sittingIdle: [{ itemId: 's1', name: 'Wool Coat', photoUrl: null, reason: 'Not worn in 120 days', actionLabel: 'Plan a wear', action: { kind: 'suggest-outfit' } }],
   capsuleEfficiency: [{ capsuleId: 'c1', name: 'Spring Core', efficiency: 72 }],
 };
 

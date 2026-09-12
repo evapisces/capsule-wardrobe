@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getClosets, getClosetStats, getInsights, addItemToCapsule } from '../lib/api';
 import StatStrip, { type Stat } from '../components/StatStrip';
+import OutfitSuggestionPanel from '../components/OutfitSuggestionPanel';
 import { useBreakpoint } from '../lib/useIsMobile';
 
 // Exported so tests can assert the value without relying on jsdom's CSSOM
@@ -44,6 +45,7 @@ export default function InsightsPage() {
   const qc = useQueryClient();
   const [addedItemIds, setAddedItemIds] = useState<Set<string>>(new Set());
   const [errorItemId, setErrorItemId] = useState<string | null>(null);
+  const [suggestItemId, setSuggestItemId] = useState<string | null>(null);
   const addToCapsuleMutation = useMutation({
     mutationFn: ({ capsuleId, itemId }: { capsuleId: string; itemId: string }) =>
       addItemToCapsule(capsuleId, itemId),
@@ -154,8 +156,7 @@ export default function InsightsPage() {
                     <button
                       className="btn-secondary"
                       style={buttonStyle}
-                      disabled
-                      title="Outfit suggestions aren't available yet"
+                      onClick={() => setSuggestItemId(row.itemId)}
                     >
                       {row.actionLabel}
                     </button>
@@ -236,6 +237,16 @@ export default function InsightsPage() {
           )}
         </div>
       </div>
+
+      {suggestItemId && (
+        <OutfitSuggestionPanel
+          isOpen={!!suggestItemId}
+          onClose={() => setSuggestItemId(null)}
+          itemId={suggestItemId}
+          closetId={closetId}
+          range={range}
+        />
+      )}
     </div>
   );
 }

@@ -20,6 +20,7 @@ import type {
   AuthUser,
   ClosetWearDay,
   ItemSuggestResponse,
+  OutfitSuggestion,
 } from '@capsule/shared';
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
@@ -112,6 +113,8 @@ export const undoItemWear = (itemId: string) =>
   });
 export const getItemCapsules = (itemId: string) =>
   request<ItemCapsuleMembership[]>(`/items/${itemId}/capsules`);
+export const getOutfitSuggestion = (itemId: string) =>
+  request<OutfitSuggestion>(`/items/${itemId}/outfit-suggestion`);
 
 // Photo upload
 export const uploadPhoto = async (file: File): Promise<UploadResponse> => {

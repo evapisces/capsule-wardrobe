@@ -117,12 +117,16 @@ describe('InsightsPage — sitting-idle action button (issue #32)', () => {
     expect(api.addItemToCapsule).toHaveBeenCalledTimes(2);
   });
 
-  it('leaves the suggest-outfit button disabled and never calls addItemToCapsule for it', async () => {
+  it('opens the outfit suggestion panel and never calls addItemToCapsule directly for the suggest-outfit action', async () => {
+    vi.mocked(api.getOutfitSuggestion).mockReturnValue(new Promise(() => {})); // stays loading
+    const user = userEvent.setup();
     renderPage();
 
     const button = await screen.findByRole('button', { name: 'Suggest an outfit' });
-    expect(button).toBeDisabled();
-    button.click();
+    expect(button).not.toBeDisabled();
+    await user.click(button);
+
+    await screen.findByRole('dialog', { name: 'Suggest an outfit' });
     expect(api.addItemToCapsule).not.toHaveBeenCalled();
   });
 });

@@ -87,7 +87,7 @@ describe('client auth gate (issue #21)', () => {
     expect(screen.queryByRole('link', { name: 'Closet' })).not.toBeInTheDocument();
   });
 
-  it("(b) authenticated: renders the app shell and the user's name in the nav", async () => {
+  it("(b) authenticated: renders the app shell and the user's name behind the nav's account menu", async () => {
     stubFetch({
       '/auth/me': USER,
       '/closets': [CLOSET],
@@ -96,9 +96,12 @@ describe('client auth gate (issue #21)', () => {
 
     renderApp();
 
-    expect(await screen.findByText('Wardrobe Owner')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Account' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Closet' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /sign in with google/i })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Account' }));
+    expect(screen.getByText('Wardrobe Owner')).toBeInTheDocument();
   });
 
   it('(c) clicking "Sign in with Google" targets the /api/auth/google URL', async () => {
@@ -120,9 +123,10 @@ describe('client auth gate (issue #21)', () => {
 
     renderApp();
 
-    await screen.findByText('Wardrobe Owner');
+    await screen.findByRole('button', { name: 'Account' });
+    await userEvent.click(screen.getByRole('button', { name: 'Account' }));
 
-    await userEvent.click(screen.getByRole('button', { name: /sign out/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /sign out/i }));
 
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
       expect.stringContaining('/api/auth/logout'),
@@ -141,7 +145,7 @@ describe('client auth gate (issue #21)', () => {
     renderApp();
 
     // Shell renders first, authenticated...
-    await screen.findByText('Wardrobe Owner');
+    await screen.findByRole('button', { name: 'Account' });
 
     // ...then the 401 from a page-level fetch flips it back to anonymous.
     await waitFor(() => {
